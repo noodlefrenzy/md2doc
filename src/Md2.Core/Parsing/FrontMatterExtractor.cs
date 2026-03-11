@@ -13,11 +13,6 @@ namespace Md2.Parsing;
 
 public static class FrontMatterExtractor
 {
-    private static readonly HashSet<string> KnownFields = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "title", "author", "date", "subject", "keywords"
-    };
-
     public static DocumentMetadata Extract(MarkdownDocument doc)
     {
         ArgumentNullException.ThrowIfNull(doc);
@@ -42,7 +37,7 @@ public static class FrontMatterExtractor
                 .Build();
 
             parsed = deserializer.Deserialize<Dictionary<string, object>>(yaml)
-                     ?? new Dictionary<string, object>();
+                     ?? [];
         }
         catch (YamlException ex)
         {
