@@ -54,18 +54,48 @@ No status transitions were skipped. Process improvements PI-1 and PI-2 from Spri
 
 | Concern | Status | Finding |
 |---------|--------|---------|
-| Logging | Below Foundation | No logging framework configured. CLI accepts --verbose flag but no implementation. TD-003 tracks this. |
-| Error UX | Foundation | CLI errors go to stderr with clean messages. Exit codes defined (0/1/2). FrontMatterParseException has line numbers. ImageBuilder returns placeholder for missing files. |
-| Debug support | Below Foundation | No structured logging. Developers must use debugger. |
-| Config health | N/A | No config files yet (theme engine is Sprint 6). |
-| Graceful degradation | Foundation | FrontMatterExtractor handles missing/malformed YAML. ImageBuilder handles missing image files with placeholder text. SmartTypographyTransform skips code spans safely. |
+| Logging framework | Below | No ILogger, no Microsoft.Extensions.Logging, no structured logging anywhere in src/. All output is ad-hoc Console.Error in ConvertCommand. |
+| --verbose flag | Foundation | Flag exists and prints input/output paths + stack traces on error. But only 2 breadcrumbs for entire conversion — no phase timing, no transform names, no AST stats. |
+| --quiet flag | Below | Declared and parsed but **never read** in ExecuteAsync. Dead code. |
+| Pipeline stage logging | Below | ConversionPipeline.Parse/Transform/Emit produce no log output. Cannot tell which stage failed or how long each took. |
+| Error pattern (top-level) | Foundation | Single catch in ConvertCommand prints "Error: {message}" to stderr. Exit code 1 for errors, 2 for file-not-found. Reasonable starting point. |
+| Error pattern (FrontMatter) | Foundation | Custom FrontMatterParseException with line numbers. Good. |
+| Error pattern (ImageBuilder) | Below | GetImageDimensions has bare catch that silently swallows all exceptions, returns default 6x4 size. Silent failure. |
+| Error pattern (unhandled blocks) | Below | VisitBlock returns empty for unrecognized types (FencedCodeBlock, QuoteBlock, ThematicBreakBlock, HtmlBlock silently dropped). Content lost with no warning. |
+| Config validation | N/A | CLI tool with no config files. System.CommandLine validates args. |
+| Debug support | Below | Only input path + error message available. No phase ID, no timing, no document stats. Impossible to diagnose beyond "it failed." |
+| Graceful degradation (images) | Foundation | ImageBuilder checks File.Exists, returns styled placeholder. Good. |
+| Graceful degradation (URLs) | Foundation | VisitLink catches UriFormatException, falls back to plain text. Silent but non-destructive. |
+| Graceful degradation (cancellation) | Below | No CancellationToken threading. EmitAsync accepts no cancellation. |
+
+**Summary:** 7 Foundation, 7 Below, 2 N/A
+
+**Top Ines recommendations:**
+1. Integrate Microsoft.Extensions.Logging with ILogger injection
+2. Fix dead --quiet flag (wire it or remove it)
+3. Warn on silently dropped content in VisitBlock
+4. Stop swallowing exceptions in ImageBuilder.GetImageDimensions
+5. Add CancellationToken to pipeline
 
 ### Diego: README 5-Minute Test
 
-- **Result:** Pass (partial)
-- **Execution-verified:** `dotnet build`, `dotnet test`, `dotnet run --project src/Md2.Cli -- --help`, `dotnet run --project src/Md2.Cli -- input.md -o output.docx` (produces valid 3.4KB DOCX)
-- **Issues found:** README predates Sprint 3 additions. Quick-start is functional but doesn't mention table/list/image capabilities.
+- **Result:** FAIL (tool works; README does not document it)
+- **Execution-verified:** `dotnet build` (pass), `dotnet test` (184/184 pass), `dotnet run --project src/Md2.Cli -- --help` (pass), `dotnet run --project src/Md2.Cli -- --version` (pass), end-to-end convert to .docx (pass, 3.4KB valid DOCX with styles, numbering, footer)
+- **Issues found:**
+  1. **[P1] README is the vteam-hybrid template README**, not md2doc documentation. Zero build/run/usage instructions. A newcomer cannot get started.
+  2. **[P2] No sample markdown file** in the repo for quick verification.
+  3. **[P3] Output path derivation undocumented** (input.md → input.docx rule not explained).
+- **Positive:** The tool itself works flawlessly. Build, CLI, E2E, all 184 tests pass on first try with zero warnings.
 
 ### Gate Assessment
 
-2 concerns below Foundation (Logging, Debug support). Same as Sprint 1-2. Project is at Sprint 3, so the 3+ threshold gate applies. However, only 2 concerns are below Foundation (threshold is 3), so the gate **passes**. TD-003 (logging) remains tracked for Sprint 8.
+**7 concerns below Foundation** (logging framework, --quiet dead code, pipeline logging, ImageBuilder error swallowing, unhandled block dropping, debug support, cancellation). This **exceeds the 3-concern threshold** and the project is past Sprint 2.
+
+**Gate: BLOCKING.** Grace creates P1 work items for below-Foundation concerns for Sprint 4 inclusion.
+
+However, many of these concerns will be naturally resolved by Sprint 4 work (code blocks, blockquotes, thematic breaks add VisitBlock handlers) and Sprint 8 (logging, TD-003). The blocking items that need immediate attention:
+1. Dead --quiet flag (trivial fix)
+2. ImageBuilder silent exception swallowing (trivial fix)
+3. README has no md2doc content (P1 per Diego)
+
+These 3 items are added to Sprint 4 as P1 work items.
