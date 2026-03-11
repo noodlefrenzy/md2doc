@@ -13,13 +13,15 @@ agent-notes:
 <!-- Debt open for 3+ sprints is automatically escalated by Grace (override authority per persona definition). -->
 
 **Project:** md2
-**Last reviewed:** 2026-03-11 (initialized at plan creation)
+**Last reviewed:** 2026-03-11 (Sprint 1-2 boundary)
 
 ## Active Debt
 
 | ID | Description | Category | Incurred | Why (business reason) | Est. cost to fix | Risk if left | Sprint to fix | Status |
 |----|-------------|----------|----------|----------------------|-----------------|-------------|--------------|--------|
 | TD-001 | Hardcoded default ResolvedTheme in Md2.Emit.Docx (Issue 13) | Hardcoded values | Sprint 2 | Theme engine not built yet; need working DOCX output before cascade exists | S (swap to real cascade) | Low: replaced in Sprint 6 | Sprint 6 | Open -- planned |
+| TD-002 | FrontMatterExtractor in Md2.Core assembly with Md2.Parsing namespace | Architecture smell | Sprint 1 | Avoids circular dependency between Core and Parsing | S (move to shared types project if needed) | Low: works correctly, documented | Post-v1 | Open -- accepted |
+| TD-003 | No logging framework configured | Missing infrastructure | Sprint 2 | Focused on core functionality first | M (add ILogger, wire to --verbose) | Medium: harder to debug in production | Sprint 8 | Open -- planned |
 
 ## Anticipated Debt (from plan)
 
