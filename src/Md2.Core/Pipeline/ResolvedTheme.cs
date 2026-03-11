@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Resolved theme with font/color/spacing defaults", deps: [], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Resolved theme with font/color/spacing/table defaults", deps: [], state: active, last: "sato@2026-03-11" }
 
 namespace Md2.Core.Pipeline;
 
@@ -25,6 +25,13 @@ public class ResolvedTheme
     public double Heading4Size { get; set; } = 13.0;
     public double Heading5Size { get; set; } = 11.0;
     public double Heading6Size { get; set; } = 11.0;
+
+    // Table styling
+    public string TableHeaderBackground { get; set; } = "1B3A5C";
+    public string TableHeaderForeground { get; set; } = "FFFFFF";
+    public string TableBorderColor { get; set; } = "BFBFBF";
+    public int TableBorderWidth { get; set; } = 4; // in eighth-points
+    public string TableAlternateRowBackground { get; set; } = "F2F2F2";
 
     // Line spacing (multiplier, e.g. 1.15)
     public double LineSpacing { get; set; } = 1.15;

@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml Table from Markdig table with auto-sizing", deps: [ParagraphBuilder, ResolvedTheme, Markdig.Extensions.Tables, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Builds OpenXml Table with auto-sizing, borders, header repeat, alternating rows, cell padding", deps: [ParagraphBuilder, ResolvedTheme, Markdig.Extensions.Tables, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -47,10 +47,13 @@ public sealed class TableBuilder
             tableGrid
         );
 
+        int dataRowIndex = 0;
         foreach (var mdRow in rows)
         {
-            var tableRow = BuildRow(mdRow, columnWidths, theme);
+            var tableRow = BuildRow(mdRow, columnWidths, theme, mdRow.IsHeader ? -1 : dataRowIndex);
             table.Append(tableRow);
+            if (!mdRow.IsHeader)
+                dataRowIndex++;
         }
 
         return table;
@@ -76,22 +79,38 @@ public sealed class TableBuilder
         );
     }
 
-    private TableRow BuildRow(MdTableRow mdRow, int[] columnWidths, ResolvedTheme theme)
+    private TableRow BuildRow(MdTableRow mdRow, int[] columnWidths, ResolvedTheme theme, int dataRowIndex)
     {
         var cells = mdRow.OfType<MdTableCell>().ToList();
         var tableRow = new TableRow();
 
+        // Add row properties: header repeat for header rows, CantSplit=false for data rows
+        var rowProps = new TableRowProperties();
+        if (mdRow.IsHeader)
+        {
+            rowProps.Append(new TableHeader());
+        }
+        else
+        {
+            rowProps.Append(new CantSplit { Val = OnOffOnlyValues.Off });
+        }
+        tableRow.Append(rowProps);
+
+        bool isAlternateDataRow = !mdRow.IsHeader && dataRowIndex % 2 == 1;
+
         for (int i = 0; i < columnWidths.Length; i++)
         {
             var cellContent = i < cells.Count ? cells[i] : null;
-            var tableCell = BuildCell(cellContent, columnWidths[i], mdRow.IsHeader, theme);
+            var tableCell = BuildCell(cellContent, columnWidths[i], mdRow.IsHeader, theme, isAlternateDataRow);
             tableRow.Append(tableCell);
         }
 
         return tableRow;
     }
 
-    private TableCell BuildCell(MdTableCell? mdCell, int widthTwips, bool isHeader, ResolvedTheme theme)
+    private const int DefaultCellPaddingTwips = 57; // ~1mm each side
+
+    private TableCell BuildCell(MdTableCell? mdCell, int widthTwips, bool isHeader, ResolvedTheme theme, bool isAlternateDataRow = false)
     {
         var cellProperties = new TableCellProperties(
             new TableCellWidth { Width = widthTwips.ToString(), Type = TableWidthUnitValues.Dxa }
@@ -105,6 +124,23 @@ public sealed class TableBuilder
                 Fill = theme.TableHeaderBackground
             });
         }
+        else if (isAlternateDataRow)
+        {
+            cellProperties.Append(new Shading
+            {
+                Val = ShadingPatternValues.Clear,
+                Fill = theme.TableAlternateRowBackground
+            });
+        }
+
+        // Cell padding
+        var paddingStr = DefaultCellPaddingTwips.ToString();
+        cellProperties.Append(new TableCellMargin(
+            new TopMargin { Width = paddingStr, Type = TableWidthUnitValues.Dxa },
+            new BottomMargin { Width = paddingStr, Type = TableWidthUnitValues.Dxa },
+            new LeftMargin { Width = paddingStr, Type = TableWidthUnitValues.Dxa },
+            new RightMargin { Width = paddingStr, Type = TableWidthUnitValues.Dxa }
+        ));
 
         var paragraph = BuildCellParagraph(mdCell, isHeader, theme);
 
