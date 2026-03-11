@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Walks Markdig AST, dispatches to ParagraphBuilder", deps: [ParagraphBuilder, Markdig, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Walks Markdig AST, dispatches to builders for paragraphs, tables, lists, images", deps: [ParagraphBuilder, TableBuilder, ListBuilder, ImageBuilder, Markdig, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -8,17 +8,33 @@ using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Md2.Core.Pipeline;
 
+using MdTable = Markdig.Extensions.Tables.Table;
+
 namespace Md2.Emit.Docx;
 
 public class DocxAstVisitor
 {
     private readonly ParagraphBuilder _paragraphBuilder;
+    private readonly TableBuilder _tableBuilder;
+    private readonly ListBuilder _listBuilder;
+    private readonly ImageBuilder _imageBuilder;
     private readonly MainDocumentPart _mainDocumentPart;
+    private readonly ResolvedTheme _theme;
 
-    public DocxAstVisitor(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart)
+    public DocxAstVisitor(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart, ResolvedTheme theme)
     {
         _paragraphBuilder = paragraphBuilder;
+        _tableBuilder = new TableBuilder(paragraphBuilder);
+        _listBuilder = new ListBuilder(paragraphBuilder, mainDocumentPart);
+        _imageBuilder = new ImageBuilder(paragraphBuilder);
         _mainDocumentPart = mainDocumentPart;
+        _theme = theme;
+    }
+
+    // Keep backward-compatible constructor
+    public DocxAstVisitor(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart)
+        : this(paragraphBuilder, mainDocumentPart, ResolvedTheme.CreateDefault())
+    {
     }
 
     public IEnumerable<OpenXmlElement> Visit(MarkdownDocument document)
@@ -40,8 +56,22 @@ public class DocxAstVisitor
         {
             HeadingBlock heading => VisitHeading(heading),
             ParagraphBlock paragraph => VisitParagraph(paragraph),
+            MdTable table => VisitTable(table),
+            ListBlock list => VisitList(list),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
+    }
+
+    private IEnumerable<OpenXmlElement> VisitTable(MdTable table)
+    {
+        var availableWidthTwips = (int)(_theme.PageWidth - _theme.MarginLeft - _theme.MarginRight);
+        var built = _tableBuilder.Build(table, _theme, availableWidthTwips);
+        return new OpenXmlElement[] { built };
+    }
+
+    private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
+    {
+        return _listBuilder.Build(list);
     }
 
     private IEnumerable<OpenXmlElement> VisitHeading(HeadingBlock heading)
@@ -171,6 +201,14 @@ public class DocxAstVisitor
     {
         if (link.Url == null)
             return Enumerable.Empty<OpenXmlElement>();
+
+        // Handle image links
+        if (link.IsImage)
+        {
+            var altText = ExtractInlineText(link);
+            var imageParagraph = _imageBuilder.BuildImage(_mainDocumentPart, link.Url, altText, _theme);
+            return new OpenXmlElement[] { imageParagraph };
+        }
 
         // Extract link text
         var linkText = ExtractInlineText(link);
