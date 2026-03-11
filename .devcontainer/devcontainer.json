@@ -1,0 +1,48 @@
+{
+  "name": "md2",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:9.0",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22",
+      "nodeGypDependencies": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "installDirectlyFromGitHubRelease": true,
+      "version": "latest"
+    }
+  },
+
+  "postCreateCommand": ".devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "dotnet.defaultSolution": "md2.sln",
+        "editor.formatOnSave": true,
+        "editor.bracketPairColorization.enabled": true,
+        "omnisharp.enableRoslynAnalyzers": true,
+        "omnisharp.enableEditorConfigSupport": true
+      },
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "editorconfig.editorconfig",
+        "eamodio.gitlens",
+        "bierner.markdown-mermaid",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+
+  "remoteEnv": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_NOLOGO": "1",
+    "PLAYWRIGHT_BROWSERS_PATH": "/home/vscode/.cache/ms-playwright"
+  },
+
+  "containerEnv": {
+    "DOTNET_RUNNING_IN_CONTAINER": "true"
+  }
+}

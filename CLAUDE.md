@@ -3,15 +3,29 @@
 
 ## Project Overview
 
-<!-- TODO: Replace this section with your project's overview after scaffolding -->
-
-**Project Name:** [Your Project Name]
-**Description:** [Brief description of what this project does]
-**Tech Stack:** [Language, framework, key libraries — update after running a scaffold command]
+**Project Name:** md2
+**Description:** A CLI toolkit that converts Markdown to polished DOCX files (v1) and PPTX (v2). Pipeline architecture with YAML theme DSL. Output quality noticeably superior to pandoc.
+**Tech Stack:** C# / .NET 9, Open XML SDK, Markdig, TextMateSharp, Playwright for .NET, YamlDotNet, System.CommandLine
 
 **Codebase map:** `docs/code-map.md` — read this first to understand the package structure, public APIs, and data flow.
 
-> **Note:** Several paths referenced below (e.g., `docs/code-map.md`, `docs/tech-debt.md`, `docs/test-strategy.md`) live under `docs/scaffolds/` until you run a scaffold command, which moves them to their final locations.
+## GitHub Board
+
+**Project:** md2 v1
+**Number:** 14
+**Owner:** noodlefrenzy
+**URL:** https://github.com/users/noodlefrenzy/projects/14
+
+**Status Field ID:** `PVTSSF_lAHOAAxp6M4BRYzFzg_Ovlc`
+**Project Node ID:** `PVT_kwHOAAxp6M4BRYzF`
+
+| Status | Option ID |
+|--------|-----------|
+| Backlog | `ff02966e` |
+| Ready | `a0da6b33` |
+| In Progress | `fbf70cdb` |
+| In Review | `3b24bdf4` |
+| Done | `b997f658` |
 
 ## Agent-Notes Protocol (MANDATORY)
 
@@ -136,6 +150,7 @@ Run `/sprint-boundary` when all sprint items are Done or deferred. Full workflow
 ```
 .
 ├── CLAUDE.md                 # This file — slim runtime instructions
+├── .devcontainer/            # Dev container config (.NET 9 + Playwright/Chromium)
 ├── docs/
 │   ├── methodology/          # System docs (phases, personas, agent-notes)
 │   ├── process/              # Governance, done gate, gotchas, doc ownership
