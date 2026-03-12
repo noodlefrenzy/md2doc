@@ -1,6 +1,6 @@
 ---
 agent-notes:
-  ctx: "session handoff for Sprint 5 Wave 4"
+  ctx: "session handoff — Sprint 5 complete, Sprint 6 next"
   deps: [CLAUDE.md, docs/sprints/sprint-5-plan.md, docs/code-map.md]
   state: active
   last: "grace@2026-03-12"
@@ -8,62 +8,77 @@ agent-notes:
 # Session Handoff
 
 **Created:** 2026-03-12
-**Sprint:** 5
-**Wave:** 3 of 4 (Waves 1-3 complete, Wave 4 next)
-**Session summary:** Executed Sprint 5 Wave 3 — all Mermaid and Math rendering infrastructure.
+**Sprint:** 5 (complete — run `/sprint-boundary` to start Sprint 6)
+**Wave:** 3 of 4 executed this session; Wave 4 items deferred or absorbed
+**Session summary:** Executed Sprint 5 Wave 3 (Mermaid + Math rendering), then wired all new transforms into the CLI and emitter end-to-end. User reviewed output DOCX and approved moving to Sprint 6.
 
 ## What Was Done
 
-### Sprint 5 Wave 3 — Mermaid + Math Rendering
-- **#28** (L) MermaidRenderer — Playwright-based rendering to PNG at 2x DPI, SHA256 content-hash caching with version salt, embedded Mermaid JS v11.13.0 (~2.9MB), error detection via aria-roledescription. 11 tests (6 unit + 5 integration). Code reviewed by Vik+Tara+Pierrot.
-- **#29** (M) MermaidDiagramRenderer — IAstTransform (order 40) walking FencedCodeBlocks with Info="mermaid", rendering to PNG, annotating with SetMermaidImagePath(). Graceful degradation with warnings. 9 integration tests.
-- **#30** (L) LatexToOmmlConverter — Full pipeline: LaTeX → KaTeX (Playwright, MathML output) → MML2OMML.xsl (XslCompiledTransform) → OMML XML. KaTeX v0.16.38 (~270KB) and MML2OMML.xsl (~184KB) bundled as embedded resources. Batch conversion support. 12 integration tests.
-- **#31** (M) MathBlockAnnotator — IAstTransform (order 35) walking MathBlock and MathInline nodes, converting LaTeX to OMML and annotating AST. Handles both fenced display math ($$\n...\n$$) and inline math ($...$). 8 integration tests.
+### Sprint 5 Wave 3 — Mermaid + Math Rendering (4 issues)
+- **#28** (L) MermaidRenderer — Playwright PNG rendering at 2x DPI, SHA256 content-hash caching with version salt, embedded Mermaid JS v11.13.0, error detection via aria-roledescription. Code reviewed (Vik+Tara+Pierrot). 11 tests.
+- **#29** (M) MermaidDiagramRenderer — IAstTransform (order 40) for mermaid FencedCodeBlocks. 9 tests.
+- **#30** (L) LatexToOmmlConverter — LaTeX → KaTeX (Playwright) → MathML → MML2OMML.xsl → OMML. KaTeX v0.16.38 + MML2OMML.xsl bundled as embedded resources. 12 tests.
+- **#31** (M) MathBlockAnnotator — IAstTransform (order 35) for MathBlock + MathInline nodes. 8 tests.
 
-### Also updated
-- `docs/code-map.md` — updated Md2.Math and test inventory sections
-- Created Md2.Math project + test project, added to solution
+### End-to-End Wiring (not a tracked issue — organic from user request)
+- ConvertCommand.cs: registers MermaidDiagramRenderer + MathBlockAnnotator, creates BrowserManager/DiagramCache/LatexToOmmlConverter
+- DocxAstVisitor.cs: handles MathBlock (centered OMML paragraph), MathInline (inline OMML), and mermaid-annotated FencedCodeBlocks (PNG via ImageBuilder)
+- test-sample.md: added syntax highlighting (C#, Python), Mermaid diagrams (flowchart, sequence), inline math (quadratic formula, Euler's identity), display math (Gaussian integral, matrix, Maxwell's equation)
+- User reviewed output DOCX at `~/docs/md2-output/test-sample.docx` — approved quality
+
+### Projects Created
+- `Md2.Math` (src + tests) — added to solution
+
+### Docs Updated
+- `docs/code-map.md` — updated Md2.Math section and test inventory (339 tests)
 
 ## Current State
 - **Branch:** main
-- **Last commit:** `5261a5f` feat(math): MathBlockAnnotator AST transform
-- **Uncommitted changes:** this handoff + code-map update (to be committed)
+- **Last commit:** `3f75521` feat: wire Mermaid/Math transforms into CLI and emitter
+- **Uncommitted changes:** none
 - **Tests:** 339 passing across 8 projects (43 Parsing + 63 Core + 123 Emit.Docx + 27 Integration + 37 Highlight + 26 Diagrams + 20 Math)
-- **Board status:** 31 items, Sprint 5 items #28-31 all Done
+- **Board status:** 31 items on board. Sprint 5 items #27-31 Done. #32, #33, #34 still open (Ready). Note: #32 MathBuilder was largely absorbed by the end-to-end wiring commit — the emitter now handles OMML insertion via DocxAstVisitor directly.
 
-## Sprint Progress
-- **Wave plan:** `docs/sprints/sprint-5-plan.md`
-- **Current wave:** Wave 3 — Complete
-- **Issues completed this sprint so far:** #73, #71, #72, #27, #28, #29, #30, #31
-- **Issues remaining:** #32, #33, #34, #69
+## Sprint 5 Remaining Items
+The user chose to skip Wave 4 and move to Sprint 6. These items carry forward:
+- **#32** (M) MathBuilder — largely done (OMML insertion wired into DocxAstVisitor); may want to close or refine
+- **#33** (S) Image captions from alt text — not started
+- **#34** (M) Mermaid/math benchmarks — not started
+- **#69** (process) Evaluate shared types — not started
 
-### Wave 4 — Emitter Integration + Polish (NEXT)
-| # | Title | Size | Notes |
-|---|-------|------|-------|
-| 32 | feat(emit-docx): MathBuilder for OMML element insertion | M | Wire OMML into DocxAstVisitor. Read OmmlXml from AST, deserialize into Open XML SDK types, insert into document. Inline math → Run, display math → centered Paragraph |
-| 33 | feat(emit-docx): image captions from alt text or title | S | ImageBuilder enhancement — add caption paragraph below image from alt text or title |
-| 34 | perf: Mermaid and math rendering benchmarks | M | Benchmark harness for rendering latency |
-| 69 | process: evaluate shared types for Markdig custom extensions | — | Process item |
+## Sprint 6 Scope — Theme Engine
+| # | Title | Size |
+|---|-------|------|
+| 35 | feat(themes): ThemeParser and ThemeDefinition model with YamlDotNet | L |
+| 36 | feat(themes): ThemeCascadeResolver with 4-layer merge | L |
+| 37 | feat(themes): template safety (IRM detection, .doc rejection, .docm warning, size limit) | M |
+| 38 | feat(themes): PresetRegistry with embedded preset YAML loading | M |
+| 39 | feat(themes): ThemeValidator with schema checking and line numbers | M |
+| 40 | feat(cli): md2 theme resolve command | M |
+| 41 | feat(cli): --preset, --theme, --template, --style flags on convert command | S |
+| 42 | feat(cli): --verbose shows cascade resolution details and timing | M |
 
 ## What To Do Next (in order)
 1. Read `docs/code-map.md` to orient
-2. Read `docs/sprints/sprint-5-plan.md` for wave context
-3. **Start Wave 4 — Issue #32 (MathBuilder)**
-   - Create `src/Md2.Emit.Docx/Builders/MathBuilder.cs` (or update existing if present)
-   - Read OMML XML from `block.GetOmmlXml()` on MathBlock and MathInline nodes
-   - Deserialize OMML XML string into `DocumentFormat.OpenXml.Math.OfficeMath` elements
-   - Insert into document: inline math as inline OfficeMath, display math as standalone paragraph
-   - TDD: Tara writes tests first
-4. Then #33 (image captions) — enhance ImageBuilder
-5. Then #34 (benchmarks) — performance measurement
-6. Then #69 (process evaluation)
+2. Read `docs/product-context.md` for human's product philosophy
+3. **Run `/sprint-boundary`** — Sprint 5 is complete. This will:
+   - Run the Sprint 5 retrospective
+   - Sweep the backlog (carry-forward #32, #33, #34, #69)
+   - **TD-001 escalation gate:** hardcoded ResolvedTheme hits 3-sprint threshold — must be addressed or explicitly deferred with user approval
+   - Set up Sprint 6 plan with waves
+4. Execute Sprint 6 Wave 1 (likely ThemeParser + ThemeDefinition as the foundation)
+
+## Tracking Artifacts
+- `docs/tracking/2026-03-11-md2doc-plan.md` — Active, plan phase tracking for v1 implementation
+- `docs/tracking/archive/sprint-4/` — Archived discovery and ADR debate artifacts
 
 ## Proxy Decisions (Review Required)
 None this session.
 
 ## Key Context
-- **Markdig math types:** `MathBlock` is only created by multi-line `$$\n...\n$$`. Single-line `$$...$$` becomes `MathInline` with `DelimiterCount=2`. Both `MathBlock` and `MathInline` nodes carry OMML via `SetOmmlXml`/`GetOmmlXml`.
-- **KaTeX page reuse:** `LatexToOmmlConverter` keeps a single KaTeX page alive across calls (lazy init). The page is shared per converter instance.
-- **Version salt in cache:** `DiagramCache` accepts an optional version salt. MermaidRenderer defines `MermaidVersion = "11.13.0"` but doesn't pass it to the cache yet — this should be wired when creating the renderer in the pipeline factory.
-- **Code review findings from #28:** I1 (BrowserManager race condition) is still open — not a new issue, pre-existing. Should be addressed in a future sprint.
-- **TD-001 approaching escalation:** Hardcoded ResolvedTheme hits 3-sprint threshold at Sprint 5 boundary.
+- **Markdig math types:** `MathBlock` extends `FencedCodeBlock` (must be matched before FencedCodeBlock in switch). Single-line `$$...$$` becomes `MathInline` with `DelimiterCount=2`, not `MathBlock`.
+- **Table column splitting:** User noted the wide-table "Priority" column still splits. Preview (#51/#52) is Sprint 8. No fix planned before then unless user prioritizes it.
+- **BrowserManager race condition (I1):** Pre-existing — `GetBrowserAsync` null-check not synchronized. Low risk in CLI (single-threaded pipeline) but should be fixed eventually.
+- **Version salt not wired:** `DiagramCache` accepts a version salt, `MermaidRenderer.MermaidVersion` is defined, and `ConvertCommand` now passes it. But the cache path is `md2-cache` in temp — shared across invocations, which is good for performance.
+- **KaTeX page reuse:** `LatexToOmmlConverter` keeps a single KaTeX page alive across calls via lazy init. Works well for batch conversion.
+- **TD-001 at escalation threshold:** Hardcoded `ResolvedTheme.CreateDefault()` everywhere. Sprint 6 (theme engine) is the planned fix. Must be flagged at sprint boundary.
