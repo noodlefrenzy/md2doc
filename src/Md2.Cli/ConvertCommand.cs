@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Root CLI command: markdown to docx conversion", deps: [System.CommandLine, ConversionPipeline, DocxEmitter], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Root CLI command: markdown to docx conversion", deps: [System.CommandLine, ConversionPipeline, DocxEmitter], state: active, last: "sato@2026-03-12" }
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -105,8 +105,11 @@ public static class ConvertCommand
                 await Console.Error.WriteLineAsync($"Written: {outputPath}");
             }
 
-            // Output path to stdout
-            Console.WriteLine(outputPath);
+            // Output path to stdout unless suppressed
+            if (!quiet)
+            {
+                Console.WriteLine(outputPath);
+            }
             return 0;
         }
         catch (Exception ex)
