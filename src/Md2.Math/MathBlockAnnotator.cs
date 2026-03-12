@@ -36,8 +36,12 @@ public class MathBlockAnnotator : IAstTransform
 
             try
             {
-                var omml = _converter.ConvertAsync(latex).GetAwaiter().GetResult();
+                var omml = _converter.ConvertAsync(latex, context.CancellationToken).GetAwaiter().GetResult();
                 block.SetOmmlXml(omml);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -54,8 +58,12 @@ public class MathBlockAnnotator : IAstTransform
 
             try
             {
-                var omml = _converter.ConvertAsync(latex).GetAwaiter().GetResult();
+                var omml = _converter.ConvertAsync(latex, context.CancellationToken).GetAwaiter().GetResult();
                 inline.SetOmmlXml(omml);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

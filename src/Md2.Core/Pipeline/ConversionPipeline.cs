@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Core pipeline: parse, transform, emit", deps: [Markdig, Md2.Parsing, IAstTransform, IFormatEmitter, ILogger], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Core pipeline: parse, transform, emit with cancellation", deps: [Markdig, Md2.Parsing, IAstTransform, IFormatEmitter, ILogger], state: active, last: "sato@2026-03-12" }
 
 using Markdig;
 using Markdig.Syntax;
@@ -44,15 +44,16 @@ public class ConversionPipeline
         _transforms.Add(transform);
     }
 
-    public MarkdownDocument Transform(MarkdownDocument doc, TransformOptions options)
+    public MarkdownDocument Transform(MarkdownDocument doc, TransformOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(options);
 
-        var context = new TransformContext(new DocumentMetadata(), options);
+        var context = new TransformContext(new DocumentMetadata(), options, cancellationToken);
 
         foreach (var transform in _transforms.OrderBy(t => t.Order))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogInformation("Applying transform: {TransformName} (order {Order})", transform.Name, transform.Order);
             doc = transform.Transform(doc, context);
         }

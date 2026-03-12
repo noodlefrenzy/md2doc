@@ -38,8 +38,12 @@ public class MermaidDiagramRenderer : IAstTransform
 
             try
             {
-                var path = _renderer.RenderAsync(source).GetAwaiter().GetResult();
+                var path = _renderer.RenderAsync(source, context.CancellationToken).GetAwaiter().GetResult();
                 block.SetMermaidImagePath(path);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

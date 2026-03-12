@@ -229,6 +229,75 @@ public class ConversionPipelineTests
         emitter.ReceivedDocument!.Count.ShouldBeGreaterThan(0);
     }
 
+    // ── Cancellation ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void TransformContext_DefaultCancellationToken_IsNone()
+    {
+        var context = new TransformContext(new DocumentMetadata(), new TransformOptions());
+        context.CancellationToken.ShouldBe(CancellationToken.None);
+    }
+
+    [Fact]
+    public void TransformContext_AcceptsCancellationToken()
+    {
+        using var cts = new CancellationTokenSource();
+        var context = new TransformContext(new DocumentMetadata(), new TransformOptions(), cts.Token);
+        context.CancellationToken.ShouldBe(cts.Token);
+    }
+
+    [Fact]
+    public void Transform_CancelledToken_ThrowsBeforeFirstTransform()
+    {
+        var pipeline = new ConversionPipeline();
+        var doc = new MarkdownDocument();
+        var executed = false;
+        pipeline.RegisterTransform(new StubTransform("test", 10, () => executed = true));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Should.Throw<OperationCanceledException>(() =>
+            pipeline.Transform(doc, new TransformOptions(), cts.Token));
+        executed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Transform_CancelledBetweenTransforms_StopsExecution()
+    {
+        var pipeline = new ConversionPipeline();
+        var doc = new MarkdownDocument();
+        using var cts = new CancellationTokenSource();
+
+        var executionOrder = new List<int>();
+        pipeline.RegisterTransform(new StubTransform("first", 10, () =>
+        {
+            executionOrder.Add(10);
+            cts.Cancel(); // Cancel after first transform
+        }));
+        pipeline.RegisterTransform(new StubTransform("second", 20, () => executionOrder.Add(20)));
+
+        Should.Throw<OperationCanceledException>(() =>
+            pipeline.Transform(doc, new TransformOptions(), cts.Token));
+        executionOrder.ShouldBe(new[] { 10 }); // second should not execute
+    }
+
+    [Fact]
+    public void Transform_PassesCancellationTokenToContext()
+    {
+        var pipeline = new ConversionPipeline();
+        var doc = new MarkdownDocument();
+        using var cts = new CancellationTokenSource();
+        CancellationToken? capturedToken = null;
+
+        pipeline.RegisterTransform(new ContextCapturingTransform(ctx => capturedToken = ctx.CancellationToken));
+
+        pipeline.Transform(doc, new TransformOptions(), cts.Token);
+
+        capturedToken.ShouldNotBeNull();
+        capturedToken.Value.ShouldBe(cts.Token);
+    }
+
     // ── IFormatEmitter contract ────────────────────────────────────────
 
     [Fact]
@@ -259,6 +328,25 @@ public class ConversionPipelineTests
         public MarkdownDocument Transform(MarkdownDocument doc, TransformContext context)
         {
             _onTransform();
+            return doc;
+        }
+    }
+
+    private class ContextCapturingTransform : IAstTransform
+    {
+        private readonly Action<TransformContext> _onTransform;
+
+        public ContextCapturingTransform(Action<TransformContext> onTransform)
+        {
+            _onTransform = onTransform;
+        }
+
+        public string Name => "ContextCapture";
+        public int Order => 10;
+
+        public MarkdownDocument Transform(MarkdownDocument doc, TransformContext context)
+        {
+            _onTransform(context);
             return doc;
         }
     }

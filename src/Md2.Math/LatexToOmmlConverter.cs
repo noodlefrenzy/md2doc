@@ -55,6 +55,7 @@ public sealed class LatexToOmmlConverter
         var results = new List<string>(expressions.Count);
         foreach (var latex in expressions)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var mathml = await LatexToMathMlAsync(latex, cancellationToken);
             results.Add(MathMlToOmml(mathml));
         }
@@ -66,10 +67,12 @@ public sealed class LatexToOmmlConverter
         if (_katexPage is not null)
             return _katexPage;
 
+        cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("Creating KaTeX rendering page");
         var browser = await _browserManager.GetBrowserAsync(cancellationToken);
         var context = await browser.NewContextAsync();
         _katexPage = await context.NewPageAsync();
+        _katexPage.SetDefaultTimeout(BrowserManager.PageTimeoutMs);
 
         var html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>"
             + "<script>" + KatexJs.Value + "</script>"
@@ -77,7 +80,8 @@ public sealed class LatexToOmmlConverter
 
         await _katexPage.SetContentAsync(html, new PageSetContentOptions
         {
-            WaitUntil = WaitUntilState.NetworkIdle
+            WaitUntil = WaitUntilState.NetworkIdle,
+            Timeout = BrowserManager.PageTimeoutMs,
         });
 
         // Verify KaTeX loaded

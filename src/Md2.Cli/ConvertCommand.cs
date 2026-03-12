@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Root CLI command: markdown to docx conversion with theme cascade", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ThemeCascadeResolver, ILogger], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Root CLI command: markdown to docx with cancellation support", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ThemeCascadeResolver, ILogger], state: active, last: "sato@2026-03-12" }
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -103,7 +103,8 @@ public static class ConvertCommand
             var toc = context.ParseResult.GetValueForOption(tocOption);
             var tocDepth = context.ParseResult.GetValueForOption(tocDepthOption);
 
-            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, context);
+            var cancellationToken = context.GetCancellationToken();
+            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, cancellationToken, context);
         });
 
         return rootCommand;
@@ -121,6 +122,7 @@ public static class ConvertCommand
         string[] styles,
         bool toc,
         int tocDepth,
+        CancellationToken cancellationToken,
         InvocationContext context)
     {
         // Validate input file exists
@@ -156,7 +158,7 @@ public static class ConvertCommand
             var totalSw = Stopwatch.StartNew();
             logger.LogInformation("Reading: {Path}", input.FullName);
 
-            var markdown = await File.ReadAllTextAsync(input.FullName);
+            var markdown = await File.ReadAllTextAsync(input.FullName, cancellationToken);
 
             // Parse
             var parseSw = Stopwatch.StartNew();
@@ -184,7 +186,7 @@ public static class ConvertCommand
             pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
             pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
             var transformOptions = new TransformOptions { RenderMermaid = true };
-            var transformed = pipeline.Transform(doc, transformOptions);
+            var transformed = pipeline.Transform(doc, transformOptions, cancellationToken);
             transformSw.Stop();
             logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
 
@@ -286,6 +288,11 @@ public static class ConvertCommand
                 Console.WriteLine(outputPath);
             }
             return 0;
+        }
+        catch (OperationCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Operation cancelled.");
+            return 1;
         }
         catch (Md2Exception ex)
         {

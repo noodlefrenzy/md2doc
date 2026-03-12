@@ -44,18 +44,22 @@ public sealed class MermaidRenderer
 
         _logger.LogInformation("Rendering Mermaid diagram ({Length} chars)", mermaidSource.Length);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var browser = await _browserManager.GetBrowserAsync(cancellationToken);
         var context = await browser.NewContextAsync(new BrowserNewContextOptions
         {
             DeviceScaleFactor = 2,
         });
         var page = await context.NewPageAsync();
+        page.SetDefaultTimeout(BrowserManager.PageTimeoutMs);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var html = BuildHtml(mermaidSource);
             await page.SetContentAsync(html, new PageSetContentOptions
             {
-                WaitUntil = WaitUntilState.NetworkIdle
+                WaitUntil = WaitUntilState.NetworkIdle,
+                Timeout = BrowserManager.PageTimeoutMs,
             });
 
             // Wait for Mermaid to render and check for errors

@@ -15,6 +15,31 @@ public class BrowserManagerTests
     }
 
     [Fact]
+    public void LaunchTimeoutMs_IsReasonable()
+    {
+        BrowserManager.LaunchTimeoutMs.ShouldBeGreaterThan(0);
+        BrowserManager.LaunchTimeoutMs.ShouldBeLessThanOrEqualTo(60_000);
+    }
+
+    [Fact]
+    public void PageTimeoutMs_IsReasonable()
+    {
+        BrowserManager.PageTimeoutMs.ShouldBeGreaterThan(0);
+        BrowserManager.PageTimeoutMs.ShouldBeLessThanOrEqualTo(60_000);
+    }
+
+    [Fact]
+    public async Task GetBrowserAsync_CancelledToken_ThrowsOperationCancelled()
+    {
+        await using var manager = new BrowserManager();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => manager.GetBrowserAsync(cts.Token));
+    }
+
+    [Fact]
     public async Task GetBrowserAsync_ReturnsBrowser()
     {
         await using var manager = new BrowserManager();
