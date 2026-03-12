@@ -83,7 +83,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 | Area | Key Types | Notes |
 |------|----------|-------|
 | Root command | `ConvertCommand` | Default: infer format from -o extension |
-| Theme commands | `ThemeExtractCommand`, `ThemeValidateCommand`, `ThemeListCommand` | Subcommands under `theme` |
+| Theme commands | `ThemeResolveCommand` | `md2 theme resolve` with cascade trace |
 | Preview command | `PreviewCommand` | Hot-reload preview via Playwright |
 | Pipeline wiring | `PipelineFactory` | Composes pipeline from CLI options |
 
@@ -125,6 +125,8 @@ Md2.Cli ─────────────── entry point, System.Comman
 | Presets | `PresetRegistry` | Loads embedded preset YAML files |
 | Extraction | `DocxStyleExtractor` | template.docx -> ThemeDefinition |
 | Validation | `ThemeValidator` | Schema validation with line numbers |
+| Formatting | `ThemeResolveFormatter` | Cascade trace -> aligned table output |
+| Safety | `TemplateSafetyChecker` | IRM, .doc, .docm, size limit checks |
 
 **External deps:** YamlDotNet
 
@@ -220,8 +222,9 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Md2.Core.Tests | 63 | Pipeline orchestration, transform ordering |
 | Md2.Parsing.Tests | 43 | Extension coverage, front matter extraction |
 | Md2.Emit.Docx.Tests | 123 | Style application, element construction |
+| Md2.Themes.Tests | 119 | Theme parsing, cascade resolution, validation, formatting |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 26 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer |
 | Md2.Integration.Tests | 27 | End-to-end pipeline validation |
-| **Total** | **339** | |
+| **Total** | **458** | |
