@@ -1,0 +1,48 @@
+# agent-notes: { ctx: "corporate preset — formal, serif, conservative palette", deps: [ThemeDefinition.cs], state: active, last: "sato@2026-03-12" }
+#
+# Corporate preset for md2. Formal serif typography, conservative navy
+# palette, generous margins suitable for printed reports and proposals.
+
+meta:
+  name: corporate
+  description: Formal serif styling for business reports and proposals
+  version: 1
+
+typography:
+  headingFont: Georgia
+  bodyFont: "Times New Roman"
+  monoFont: "Courier New"
+  monoFontFallback: Consolas
+
+colors:
+  primary: "#003366"
+  secondary: "#336699"
+  bodyText: "#222222"
+  codeBackground: "#FAFAFA"
+  codeBorder: "#CCCCCC"
+  link: "#003366"
+  tableHeaderBackground: "#003366"
+  tableHeaderForeground: "#FFFFFF"
+  tableBorder: "#999999"
+  tableAlternateRow: "#F0F4F8"
+  blockquoteBorder: "#336699"
+  blockquoteText: "#444444"
+
+docx:
+  baseFontSize: 12
+  heading1Size: 30
+  heading2Size: 24
+  heading3Size: 18
+  heading4Size: 14
+  heading5Size: 12
+  heading6Size: 12
+  lineSpacing: 1.5
+  tableBorderWidth: 4
+  blockquoteIndentTwips: 720
+  page:
+    width: 12240
+    height: 15840
+    marginTop: 1800
+    marginBottom: 1800
+    marginLeft: 1800
+    marginRight: 1800

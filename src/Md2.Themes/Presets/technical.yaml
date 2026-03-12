@@ -1,0 +1,48 @@
+# agent-notes: { ctx: "technical preset — monospace-heavy, high contrast", deps: [ThemeDefinition.cs], state: active, last: "sato@2026-03-12" }
+#
+# Technical preset for md2. Designed for software docs, RFCs, and
+# technical specifications. Monospace headings, tight spacing, muted palette.
+
+meta:
+  name: technical
+  description: Monospace-forward for technical docs and specifications
+  version: 1
+
+typography:
+  headingFont: "Cascadia Code"
+  bodyFont: "Segoe UI"
+  monoFont: "Cascadia Code"
+  monoFontFallback: Consolas
+
+colors:
+  primary: "#2D2D2D"
+  secondary: "#0078D4"
+  bodyText: "#1E1E1E"
+  codeBackground: "#1E1E1E"
+  codeBorder: "#3C3C3C"
+  link: "#0078D4"
+  tableHeaderBackground: "#2D2D2D"
+  tableHeaderForeground: "#FFFFFF"
+  tableBorder: "#D4D4D4"
+  tableAlternateRow: "#F8F8F8"
+  blockquoteBorder: "#0078D4"
+  blockquoteText: "#4D4D4D"
+
+docx:
+  baseFontSize: 10
+  heading1Size: 24
+  heading2Size: 18
+  heading3Size: 14
+  heading4Size: 12
+  heading5Size: 10
+  heading6Size: 10
+  lineSpacing: 1.0
+  tableBorderWidth: 2
+  blockquoteIndentTwips: 480
+  page:
+    width: 11906
+    height: 16838
+    marginTop: 1440
+    marginBottom: 1440
+    marginLeft: 1440
+    marginRight: 1440

@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "TDD tests for PresetRegistry embedded preset loading", deps: [src/Md2.Themes/PresetRegistry.cs], state: active, last: "tara@2026-03-12" }
+// agent-notes: { ctx: "TDD tests for PresetRegistry — all 5 presets", deps: [src/Md2.Themes/PresetRegistry.cs], state: active, last: "sato@2026-03-12" }
 
 using Shouldly;
 using Md2.Themes;
@@ -140,5 +140,130 @@ public class PresetRegistryTests
         page.MarginBottom.ShouldNotBeNull();
         page.MarginLeft.ShouldNotBeNull();
         page.MarginRight.ShouldNotBeNull();
+    }
+
+    // ----- 5-preset completeness tests (#43) -----
+
+    [Fact]
+    public void ListPresets_ReturnsAllFivePresets()
+    {
+        var names = PresetRegistry.ListPresets();
+        names.Count.ShouldBe(5);
+        names.ShouldContain("academic");
+        names.ShouldContain("corporate");
+        names.ShouldContain("default");
+        names.ShouldContain("minimal");
+        names.ShouldContain("technical");
+    }
+
+    [Theory]
+    [InlineData("technical")]
+    [InlineData("corporate")]
+    [InlineData("academic")]
+    [InlineData("minimal")]
+    public void GetPreset_AllPresets_HaveCompleteSections(string presetName)
+    {
+        var theme = PresetRegistry.GetPreset(presetName);
+
+        theme.Meta.ShouldNotBeNull();
+        theme.Meta!.Name.ShouldBe(presetName);
+        theme.Typography.ShouldNotBeNull();
+        theme.Typography!.HeadingFont.ShouldNotBeNullOrWhiteSpace();
+        theme.Typography.BodyFont.ShouldNotBeNullOrWhiteSpace();
+        theme.Typography.MonoFont.ShouldNotBeNullOrWhiteSpace();
+        theme.Colors.ShouldNotBeNull();
+        theme.Colors!.Primary.ShouldNotBeNullOrWhiteSpace();
+        theme.Colors.BodyText.ShouldNotBeNullOrWhiteSpace();
+        theme.Docx.ShouldNotBeNull();
+        theme.Docx!.BaseFontSize.ShouldNotBeNull();
+        theme.Docx.Page.ShouldNotBeNull();
+    }
+
+    [Theory]
+    [InlineData("technical")]
+    [InlineData("corporate")]
+    [InlineData("academic")]
+    [InlineData("minimal")]
+    public void GetPreset_AllPresets_HaveAllColorsDefined(string presetName)
+    {
+        var colors = PresetRegistry.GetPreset(presetName).Colors!;
+
+        colors.Primary.ShouldNotBeNullOrWhiteSpace();
+        colors.Secondary.ShouldNotBeNullOrWhiteSpace();
+        colors.BodyText.ShouldNotBeNullOrWhiteSpace();
+        colors.CodeBackground.ShouldNotBeNullOrWhiteSpace();
+        colors.CodeBorder.ShouldNotBeNullOrWhiteSpace();
+        colors.Link.ShouldNotBeNullOrWhiteSpace();
+        colors.TableHeaderBackground.ShouldNotBeNullOrWhiteSpace();
+        colors.TableHeaderForeground.ShouldNotBeNullOrWhiteSpace();
+        colors.TableBorder.ShouldNotBeNullOrWhiteSpace();
+        colors.TableAlternateRow.ShouldNotBeNullOrWhiteSpace();
+        colors.BlockquoteBorder.ShouldNotBeNullOrWhiteSpace();
+        colors.BlockquoteText.ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData("technical")]
+    [InlineData("corporate")]
+    [InlineData("academic")]
+    [InlineData("minimal")]
+    public void GetPreset_AllPresets_HaveAllPageLayoutDefined(string presetName)
+    {
+        var page = PresetRegistry.GetPreset(presetName).Docx!.Page!;
+
+        page.Width.ShouldNotBeNull();
+        page.Height.ShouldNotBeNull();
+        page.MarginTop.ShouldNotBeNull();
+        page.MarginBottom.ShouldNotBeNull();
+        page.MarginLeft.ShouldNotBeNull();
+        page.MarginRight.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void GetPreset_PresetsAreVisuallyDistinct_DifferentPrimaryColors()
+    {
+        var presets = PresetRegistry.ListPresets();
+        var primaries = presets.Select(p => PresetRegistry.GetPreset(p).Colors!.Primary).ToHashSet();
+
+        // All 5 presets should have unique primary colors
+        primaries.Count.ShouldBe(presets.Count);
+    }
+
+    [Fact]
+    public void GetPreset_PresetsAreVisuallyDistinct_DifferentBodyFonts()
+    {
+        var presets = PresetRegistry.ListPresets();
+        var fonts = presets.Select(p => PresetRegistry.GetPreset(p).Typography!.BodyFont).ToList();
+
+        // At least 3 distinct body fonts across 5 presets
+        fonts.Distinct().Count().ShouldBeGreaterThanOrEqualTo(3);
+    }
+
+    [Fact]
+    public void GetPreset_Technical_HasMonospaceHeadings()
+    {
+        var theme = PresetRegistry.GetPreset("technical");
+        theme.Typography!.HeadingFont.ShouldBe("Cascadia Code");
+    }
+
+    [Fact]
+    public void GetPreset_Academic_HasDoubleSpacing()
+    {
+        var theme = PresetRegistry.GetPreset("academic");
+        theme.Docx!.LineSpacing.ShouldBe(2.0);
+    }
+
+    [Fact]
+    public void GetPreset_Corporate_HasLargerMargins()
+    {
+        var theme = PresetRegistry.GetPreset("corporate");
+        theme.Docx!.Page!.MarginTop.ShouldBe(1800);
+    }
+
+    [Fact]
+    public void GetPreset_Minimal_HasThinBorders()
+    {
+        var theme = PresetRegistry.GetPreset("minimal");
+        theme.Docx!.TableBorderWidth.ShouldBe(2);
     }
 }
