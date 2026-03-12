@@ -95,14 +95,13 @@ src/
   Md2.Cli/          — CLI entry point (System.CommandLine)
   Md2.Core/         — Pipeline orchestration, transforms, shared types
   Md2.Parsing/      — Markdig configuration and extensions
-  Md2.Themes/       — YAML theme parsing and cascade resolution
   Md2.Emit.Docx/    — DOCX emitter (Open XML SDK)
   Md2.Highlight/    — Syntax highlighting (TextMateSharp)
-  Md2.Math/         — LaTeX to OMML conversion
-  Md2.Diagrams/     — Mermaid rendering (Playwright)
 tests/
+  Md2.Core.Tests/
   Md2.Parsing.Tests/
   Md2.Emit.Docx.Tests/
+  Md2.Highlight.Tests/
   Md2.Integration.Tests/
 ```
 

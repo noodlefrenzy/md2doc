@@ -3,7 +3,7 @@ agent-notes:
   ctx: "technical debt register, persists across sprints"
   deps: [docs/plans/v1-implementation-plan.md]
   state: active
-  last: "grace@2026-03-11"
+  last: "grace@2026-03-12"
   key: ["Grace tracks, Pat prioritizes against features", "3+ sprint debt auto-escalated to P0"]
 ---
 # Technical Debt Register
@@ -13,7 +13,7 @@ agent-notes:
 <!-- Debt open for 3+ sprints is automatically escalated by Grace (override authority per persona definition). -->
 
 **Project:** md2
-**Last reviewed:** 2026-03-11 (Sprint 3 boundary)
+**Last reviewed:** 2026-03-12 (Sprint 4 boundary)
 
 ## Active Debt
 
@@ -23,6 +23,7 @@ agent-notes:
 | TD-002 | FrontMatterExtractor in Md2.Core assembly with Md2.Parsing namespace | Architecture smell | Sprint 1 | Avoids circular dependency between Core and Parsing | S (move to shared types project if needed) | Low: works correctly, documented | Post-v1 | Open -- accepted |
 | TD-003 | No logging framework configured | Missing infrastructure | Sprint 2 | Focused on core functionality first | M (add ILogger, wire to --verbose) | Medium: harder to debug in production | Sprint 8 | Open -- planned |
 | TD-004 | ExtractInlineText duplicated across TableBuilder, ListBuilder, DocxAstVisitor | Copy-paste duplication | Sprint 3 | Each builder needed inline text extraction; no shared utility existed yet | S (extract to shared static helper) | Low: identical logic, divergence risk | Post-v1 | Open -- accepted |
+| TD-005 | Md2.Emit.Docx references Md2.Parsing for AdmonitionBlock type | Architecture coupling | Sprint 4 | Need AdmonitionBlock type in emitter; no shared abstractions project exists | S (shared abstractions project) | Medium: coupling grows if more custom types added | Post-v1 | Open -- accepted |
 
 ## Anticipated Debt (from plan)
 

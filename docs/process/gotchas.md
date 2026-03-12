@@ -3,7 +3,7 @@ agent-notes:
   ctx: "implementation gotchas and established patterns"
   deps: [CLAUDE.md]
   state: active
-  last: "coordinator@2026-03-11"
+  last: "grace@2026-03-12"
 ---
 # Known Patterns and Gotchas
 
@@ -56,6 +56,18 @@ Extracted from CLAUDE.md to reduce context window load. Read this when working o
 - **execa v9 `stdin: 'pipe'` default hangs subprocesses.** execa v9 changed `stdin` from `'inherit'` to `'pipe'`. CLI tools that check stdin connectivity (e.g., `claude -p`, `gemini`) see a connected pipe and wait for EOF, which never comes — the subprocess hangs until timeout. **Detection signal:** subprocess calls work with `--version` or `--help` (which exit immediately) but hang with actual workload flags. **Fix:** always set `stdin: 'ignore'` unless you explicitly need to write to the subprocess's stdin. Audit all execa/child_process calls to explicitly configure all three stdio channels.
 
 - **Health checks that don't exercise the real code path.** A health check like `tool --version` exits immediately without reading stdin, so it succeeds even when the actual call (`tool -p "prompt"`) would hang. **Detection signal:** health check passes but actual tool invocation fails/hangs. **Fix:** health checks should exercise the same flags and stdio configuration as the real invocation, just with minimal input.
+
+## Library API Gotchas
+
+- **TextMateSharp undocumented API behavior (Sprint 4).** TextMateSharp has no public API docs. Key discoveries:
+  - `Theme.Match()` takes `IList<string>` (the full scopes list), not a single scope string.
+  - `ThemeTrieElementRule` exposes `foreground` and `fontStyle` as **public fields**, not properties — IntelliSense won't show them as settable properties.
+  - `IToken` has `EndIndex` directly — don't compute it from the next token's `StartIndex`.
+  - `TokenizeLine()` takes `LineText` which has implicit conversion from `string`.
+  - Colors from `Theme.GetColor()` include a `#` prefix — strip it for OpenXml hex color values.
+  - **Detection signal:** compile errors or runtime nulls when calling TextMateSharp. **Fix:** use reflection (`GetFields()`/`GetMembers()`) to discover the actual API surface.
+
+- **Shouldly assertion message parameters (v4.x).** Not all Shouldly assertion methods accept a custom message parameter. Notably, `ShouldNotStartWith` does NOT accept a 3rd argument for a custom message in Shouldly 4.x — it causes CS1503. **Detection signal:** compile error on assertion with custom message. **Fix:** remove the message parameter or use a different assertion.
 
 ## Build and Run
 
