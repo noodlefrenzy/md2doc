@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Tests for DocxEmitter, visitor, inline formatting", deps: [Md2.Emit.Docx, Md2.Core, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Tests for DocxEmitter, visitor, inline formatting", deps: [Md2.Emit.Docx, Md2.Core, DocumentFormat.OpenXml], state: active, last: "tara@2026-03-12" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -327,6 +327,91 @@ public class DocxEmitterTests
         using var wordDoc = WordprocessingDocument.Open(stream, false);
         var corePropsPart = wordDoc.CoreFilePropertiesPart;
         corePropsPart.ShouldNotBeNull();
+    }
+
+    // ── Subject and Keywords (Issue 56) ──────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_FrontMatter_SubjectInCoreProperties()
+    {
+        var markdown = "---\ntitle: Test\nsubject: Computer Science\n---\n\n# Hello";
+        using var wordDoc = await EmitWithFrontMatter(markdown);
+
+        var xml = ReadCorePropertiesXml(wordDoc);
+        xml.ShouldContain("Computer Science");
+    }
+
+    [Fact]
+    public async Task EmitAsync_FrontMatter_KeywordsInCoreProperties()
+    {
+        var markdown = "---\ntitle: Test\nkeywords: dotnet, markdown, docx\n---\n\n# Hello";
+        using var wordDoc = await EmitWithFrontMatter(markdown);
+
+        var xml = ReadCorePropertiesXml(wordDoc);
+        xml.ShouldContain("dotnet, markdown, docx");
+    }
+
+    [Fact]
+    public async Task EmitAsync_FrontMatter_OnlySubject_StillSetsProperties()
+    {
+        var markdown = "---\nsubject: Physics\n---\n\n# Hello";
+        using var wordDoc = await EmitWithFrontMatter(markdown);
+
+        var corePropsPart = wordDoc.CoreFilePropertiesPart;
+        corePropsPart.ShouldNotBeNull();
+
+        var xml = ReadCorePropertiesXml(wordDoc);
+        xml.ShouldContain("Physics");
+    }
+
+    [Fact]
+    public async Task EmitAsync_FrontMatter_OnlyKeywords_StillSetsProperties()
+    {
+        var markdown = "---\nkeywords: cli, tools\n---\n\n# Hello";
+        using var wordDoc = await EmitWithFrontMatter(markdown);
+
+        var corePropsPart = wordDoc.CoreFilePropertiesPart;
+        corePropsPart.ShouldNotBeNull();
+
+        var xml = ReadCorePropertiesXml(wordDoc);
+        xml.ShouldContain("cli, tools");
+    }
+
+    [Fact]
+    public async Task EmitAsync_FrontMatter_AllProperties_AllPresent()
+    {
+        var markdown = "---\ntitle: My Doc\nauthor: Jane\nsubject: Testing\nkeywords: test, qa\n---\n\n# Hello";
+        using var wordDoc = await EmitWithFrontMatter(markdown);
+
+        var xml = ReadCorePropertiesXml(wordDoc);
+        xml.ShouldContain("My Doc");
+        xml.ShouldContain("Jane");
+        xml.ShouldContain("Testing");
+        xml.ShouldContain("test, qa");
+    }
+
+    private static async Task<WordprocessingDocument> EmitWithFrontMatter(string markdown)
+    {
+        var doc = ParseMarkdown(markdown);
+        var metadata = Md2.Parsing.FrontMatterExtractor.Extract(doc);
+        doc.SetDocumentMetadata(metadata);
+
+        var theme = ResolvedTheme.CreateDefault();
+        var options = new EmitOptions();
+        var emitter = new DocxEmitter();
+        var stream = new MemoryStream();
+
+        await emitter.EmitAsync(doc, theme, options, stream);
+        stream.Position = 0;
+
+        return WordprocessingDocument.Open(stream, false);
+    }
+
+    private static string ReadCorePropertiesXml(WordprocessingDocument wordDoc)
+    {
+        var corePropsPart = wordDoc.CoreFilePropertiesPart!;
+        using var reader = new StreamReader(corePropsPart.GetStream());
+        return reader.ReadToEnd();
     }
 
     // ── ResolvedTheme defaults (Issue 13) ───────────────────────────

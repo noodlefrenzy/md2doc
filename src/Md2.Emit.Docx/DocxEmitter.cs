@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Top-level DOCX emitter implementing IFormatEmitter", deps: [IFormatEmitter, DocxAstVisitor, ParagraphBuilder, DocxStyleApplicator, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Top-level DOCX emitter implementing IFormatEmitter", deps: [IFormatEmitter, DocxAstVisitor, ParagraphBuilder, DocxStyleApplicator, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
 
 using System.Xml;
 using System.Xml.Linq;
@@ -185,7 +185,8 @@ public class DocxEmitter : IFormatEmitter
         if (metadata == null)
             return;
 
-        if (string.IsNullOrEmpty(metadata.Title) && string.IsNullOrEmpty(metadata.Author))
+        if (string.IsNullOrEmpty(metadata.Title) && string.IsNullOrEmpty(metadata.Author)
+            && string.IsNullOrEmpty(metadata.Subject) && string.IsNullOrEmpty(metadata.Keywords))
             return;
 
         var corePropsPart = wordDoc.AddCoreFilePropertiesPart();
