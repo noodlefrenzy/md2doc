@@ -10,7 +10,10 @@ using Md2.Core.Ast;
 using Md2.Core.Pipeline;
 
 using Markdig.Extensions.DefinitionLists;
+using Markdig.Extensions.Footnotes;
 using Md2.Parsing;
+
+using MdFootnote = Markdig.Extensions.Footnotes.Footnote;
 
 using MdTable = Markdig.Extensions.Tables.Table;
 
@@ -68,6 +71,7 @@ public class DocxAstVisitor
             QuoteBlock quote => VisitQuoteBlock(quote, 0),
             AdmonitionBlock admonition => VisitAdmonition(admonition),
             DefinitionList defList => VisitDefinitionList(defList),
+            FootnoteGroup footnoteGroup => VisitFootnoteGroup(footnoteGroup),
             ThematicBreakBlock => VisitThematicBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
@@ -83,6 +87,104 @@ public class DocxAstVisitor
     private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
     {
         return _listBuilder.Build(list);
+    }
+
+    private static uint _bookmarkId = 1;
+
+    private IEnumerable<OpenXmlElement> VisitFootnoteGroup(FootnoteGroup group)
+    {
+        var elements = new List<OpenXmlElement>();
+
+        // Separator line
+        var separator = new Paragraph(
+            new ParagraphProperties(
+                new WidowControl(),
+                new ParagraphBorders(
+                    new TopBorder { Val = BorderValues.Single, Size = 4, Space = 1, Color = _theme.BodyTextColor }
+                ),
+                new SpacingBetweenLines { Before = "360" }
+            )
+        );
+        elements.Add(separator);
+
+        // Render each footnote
+        foreach (var block in group)
+        {
+            if (block is MdFootnote footnote)
+            {
+                var footnotePara = _paragraphBuilder.CreateBodyParagraph();
+                var bookmarkName = $"footnote_{footnote.Order}";
+                var backBookmarkName = $"footnote_ref_{footnote.Order}";
+
+                var bmId = Interlocked.Increment(ref _bookmarkId);
+
+                // Add bookmark for this footnote
+                footnotePara.Append(new BookmarkStart { Id = bmId.ToString(), Name = bookmarkName });
+
+                // Superscript number
+                var numRun = new Run(
+                    new RunProperties(
+                        new RunFonts { Ascii = _theme.BodyFont, HighAnsi = _theme.BodyFont },
+                        new FontSize { Val = ((int)(_theme.BaseFontSize * 2 * 0.75)).ToString() },
+                        new VerticalTextAlignment { Val = VerticalPositionValues.Superscript },
+                        new Color { Val = _theme.LinkColor }
+                    ),
+                    new Text(footnote.Order.ToString()) { Space = SpaceProcessingModeValues.Preserve }
+                );
+                footnotePara.Append(numRun);
+                footnotePara.Append(new BookmarkEnd { Id = bmId.ToString() });
+
+                // Space after number
+                footnotePara.Append(_paragraphBuilder.CreateRun(" "));
+
+                // Footnote content
+                foreach (var child in footnote)
+                {
+                    if (child is ParagraphBlock paraBlock && paraBlock.Inline != null)
+                    {
+                        var runs = VisitInlineContainer(paraBlock.Inline, false, false, false);
+                        foreach (var run in runs)
+                            footnotePara.Append(run);
+                    }
+                }
+
+                elements.Add(footnotePara);
+            }
+        }
+
+        return elements;
+    }
+
+    private IEnumerable<OpenXmlElement> VisitFootnoteLink(FootnoteLink link)
+    {
+        if (link.IsBackLink)
+            return Enumerable.Empty<OpenXmlElement>();
+
+        var footnoteNum = link.Footnote.Order.ToString();
+        var bookmarkName = $"footnote_{link.Footnote.Order}";
+        var refBookmarkName = $"footnote_ref_{link.Footnote.Order}";
+
+        var bmId = Interlocked.Increment(ref _bookmarkId);
+
+        var elements = new List<OpenXmlElement>();
+
+        // Bookmark for back-navigation
+        elements.Add(new BookmarkStart { Id = bmId.ToString(), Name = refBookmarkName });
+
+        // Superscript reference number
+        var run = new Run(
+            new RunProperties(
+                new RunFonts { Ascii = _theme.BodyFont, HighAnsi = _theme.BodyFont },
+                new FontSize { Val = ((int)(_theme.BaseFontSize * 2 * 0.75)).ToString() },
+                new VerticalTextAlignment { Val = VerticalPositionValues.Superscript },
+                new Color { Val = _theme.LinkColor }
+            ),
+            new Text(footnoteNum) { Space = SpaceProcessingModeValues.Preserve }
+        );
+        elements.Add(run);
+        elements.Add(new BookmarkEnd { Id = bmId.ToString() });
+
+        return elements;
     }
 
     private IEnumerable<OpenXmlElement> VisitDefinitionList(DefinitionList defList)
@@ -362,6 +464,7 @@ public class DocxAstVisitor
             EmphasisInline emphasis => VisitEmphasis(emphasis, bold, italic, strikethrough),
             CodeInline code => VisitCodeInline(code),
             LinkInline link => VisitLink(link, bold, italic, strikethrough),
+            FootnoteLink footnoteLink => VisitFootnoteLink(footnoteLink),
             LineBreakInline => VisitLineBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
