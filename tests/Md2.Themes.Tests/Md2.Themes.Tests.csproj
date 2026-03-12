@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Md2.Themes\Md2.Themes.csproj" />
+    <ProjectReference Include="..\..\src\Md2.Core\Md2.Core.csproj" />
   </ItemGroup>
 
 </Project>

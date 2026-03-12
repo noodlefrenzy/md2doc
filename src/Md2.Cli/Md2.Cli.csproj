@@ -7,6 +7,7 @@
     <ProjectReference Include="..\Md2.Highlight\Md2.Highlight.csproj" />
     <ProjectReference Include="..\Md2.Diagrams\Md2.Diagrams.csproj" />
     <ProjectReference Include="..\Md2.Math\Md2.Math.csproj" />
+    <ProjectReference Include="..\Md2.Themes\Md2.Themes.csproj" />
   </ItemGroup>
 
   <ItemGroup>
