@@ -156,16 +156,15 @@ Md2.Cli ─────────────── entry point, System.Comman
 
 ### Md2.Math -- LaTeX Math Converter
 
-**Purpose:** Converts LaTeX math expressions to OMML (Office Math Markup Language).
+**Purpose:** Converts LaTeX math expressions to OMML via KaTeX (MathML) + MML2OMML.xsl (XSLT).
 
 | Area | Key Types | Notes |
 |------|----------|-------|
-| Parser | `LaTeXParser` | LaTeX string -> expression tree |
-| Emitter | `OmmlEmitter` | Expression tree -> OMML XML elements |
-| Transform | `MathBlockAnnotator : IAstTransform` | Attaches OMML to AST |
-| Fallback | `MathFallbackInfo` | Flags expressions needing PNG fallback |
+| Converter | `LatexToOmmlConverter` | LaTeX -> KaTeX (Playwright) -> MathML -> XSLT -> OMML |
+| Transform | `MathBlockAnnotator : IAstTransform` | Attaches OMML to MathBlock/MathInline AST nodes |
+| Resources | `katex.min.js`, `MML2OMML.xsl` | Embedded assembly resources |
 
-**No external deps** (custom implementation)
+**Deps:** Md2.Diagrams (BrowserManager), Md2.Core, Markdig (MathBlock/MathInline types)
 
 ### Md2.Diagrams -- Mermaid Rendering
 
@@ -216,13 +215,13 @@ string (markdown)
 
 _To be populated as tests are written. See `docs/architecture.md` section 11 for the testing strategy._
 
-| Package | Test Files | Tests | Focus |
-|---------|-----------|-------|-------|
-| Md2.Core.Tests | - | - | Pipeline orchestration, transform ordering |
-| Md2.Parsing.Tests | - | - | Extension coverage, front matter extraction |
-| Md2.Themes.Tests | - | - | Cascade resolution, variable interpolation, validation |
-| Md2.Emit.Docx.Tests | - | - | Style application, element construction |
-| Md2.Highlight.Tests | - | - | Token accuracy, theme mapping |
-| Md2.Math.Tests | - | - | LaTeX subset coverage, OMML correctness |
-| Md2.Diagrams.Tests | - | - | Mermaid rendering (integration, requires Chromium) |
-| Md2.Integration.Tests | - | - | End-to-end pipeline validation |
+| Package | Tests | Focus |
+|---------|-------|-------|
+| Md2.Core.Tests | 63 | Pipeline orchestration, transform ordering |
+| Md2.Parsing.Tests | 43 | Extension coverage, front matter extraction |
+| Md2.Emit.Docx.Tests | 123 | Style application, element construction |
+| Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
+| Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
+| Md2.Diagrams.Tests | 26 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer |
+| Md2.Integration.Tests | 27 | End-to-end pipeline validation |
+| **Total** | **339** | |
