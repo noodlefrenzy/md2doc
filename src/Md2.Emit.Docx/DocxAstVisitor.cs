@@ -9,6 +9,8 @@ using Markdig.Syntax.Inlines;
 using Md2.Core.Ast;
 using Md2.Core.Pipeline;
 
+using Md2.Parsing;
+
 using MdTable = Markdig.Extensions.Tables.Table;
 
 namespace Md2.Emit.Docx;
@@ -63,6 +65,7 @@ public class DocxAstVisitor
             ListBlock list => VisitList(list),
             FencedCodeBlock fencedCode => VisitFencedCodeBlock(fencedCode),
             QuoteBlock quote => VisitQuoteBlock(quote, 0),
+            AdmonitionBlock admonition => VisitAdmonition(admonition),
             ThematicBreakBlock => VisitThematicBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
@@ -78,6 +81,84 @@ public class DocxAstVisitor
     private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
     {
         return _listBuilder.Build(list);
+    }
+
+    private IEnumerable<OpenXmlElement> VisitAdmonition(AdmonitionBlock admonition)
+    {
+        var elements = new List<OpenXmlElement>();
+        var borderColor = GetAdmonitionColor(admonition.AdmonitionType);
+        var label = admonition.Title ?? CapitalizeFirst(admonition.AdmonitionType);
+
+        // Label paragraph
+        var labelPara = _paragraphBuilder.CreateBodyParagraph();
+        var labelProps = labelPara.ParagraphProperties!;
+        labelProps.Append(new ParagraphBorders(
+            new LeftBorder { Val = BorderValues.Single, Size = 24, Space = 4, Color = borderColor }
+        ));
+        labelProps.Append(new Indentation { Left = _theme.BlockquoteIndentTwips.ToString() });
+        labelProps.Append(new SpacingBetweenLines { After = "60" });
+
+        var labelRun = _paragraphBuilder.CreateRun(label, bold: true);
+        if (labelRun.RunProperties != null)
+        {
+            var existingColor = labelRun.RunProperties.Color;
+            if (existingColor != null)
+                existingColor.Val = borderColor;
+            else
+                labelRun.RunProperties.Append(new Color { Val = borderColor });
+        }
+        labelPara.Append(labelRun);
+        elements.Add(labelPara);
+
+        // Content paragraphs
+        foreach (var block in admonition)
+        {
+            if (block is ParagraphBlock paragraphBlock)
+            {
+                var paragraph = _paragraphBuilder.CreateBodyParagraph();
+                var props = paragraph.ParagraphProperties!;
+                props.Append(new ParagraphBorders(
+                    new LeftBorder { Val = BorderValues.Single, Size = 24, Space = 4, Color = borderColor }
+                ));
+                props.Append(new Indentation { Left = _theme.BlockquoteIndentTwips.ToString() });
+
+                if (paragraphBlock.Inline != null)
+                {
+                    var runs = VisitInlineContainer(paragraphBlock.Inline, false, false, false);
+                    foreach (var run in runs)
+                    {
+                        paragraph.Append(run);
+                    }
+                }
+                elements.Add(paragraph);
+            }
+            else
+            {
+                var innerElements = VisitBlock(block);
+                elements.AddRange(innerElements);
+            }
+        }
+
+        return elements;
+    }
+
+    private static string GetAdmonitionColor(string admonitionType)
+    {
+        return admonitionType.ToLowerInvariant() switch
+        {
+            "note" => "4A90D9",      // blue
+            "tip" => "28A745",        // green
+            "warning" => "FFC107",    // amber
+            "important" => "E83E8C",  // magenta
+            "caution" => "DC3545",    // red
+            _ => "6C757D"             // gray
+        };
+    }
+
+    private static string CapitalizeFirst(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        return char.ToUpper(s[0]) + s[1..];
     }
 
     private IEnumerable<OpenXmlElement> VisitQuoteBlock(QuoteBlock quote, int nestingLevel)

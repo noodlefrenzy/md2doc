@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Md2.Core\Md2.Core.csproj" />
+    <ProjectReference Include="..\Md2.Parsing\Md2.Parsing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
