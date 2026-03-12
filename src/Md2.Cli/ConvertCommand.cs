@@ -74,7 +74,11 @@ public static class ConvertCommand
         { IsRequired = false };
         tocDepthOption.SetDefaultValue(3);
 
-        var rootCommand = new RootCommand("md2 - Convert Markdown to polished DOCX files")
+        var coverOption = new Option<bool>(
+            aliases: new[] { "--cover" },
+            description: "Include a cover page from front matter metadata");
+
+        var rootCommand = new RootCommand("Convert Markdown to polished DOCX files")
         {
             inputArgument,
             outputOption,
@@ -86,8 +90,10 @@ public static class ConvertCommand
             templateOption,
             styleOption,
             tocOption,
-            tocDepthOption
+            tocDepthOption,
+            coverOption
         };
+        rootCommand.Name = "md2";
 
         rootCommand.SetHandler(async (InvocationContext context) =>
         {
@@ -102,9 +108,10 @@ public static class ConvertCommand
             var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
             var toc = context.ParseResult.GetValueForOption(tocOption);
             var tocDepth = context.ParseResult.GetValueForOption(tocDepthOption);
+            var cover = context.ParseResult.GetValueForOption(coverOption);
 
             var cancellationToken = context.GetCancellationToken();
-            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, cancellationToken, context);
+            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, cover, cancellationToken, context);
         });
 
         return rootCommand;
@@ -122,6 +129,7 @@ public static class ConvertCommand
         string[] styles,
         bool toc,
         int tocDepth,
+        bool cover,
         CancellationToken cancellationToken,
         InvocationContext context)
     {
@@ -252,7 +260,17 @@ public static class ConvertCommand
                 }
             }
 
-            var (theme, cascadeTrace) = ThemeCascadeResolver.ResolveWithTrace(cascadeInput);
+            (ResolvedTheme theme, IReadOnlyList<CascadeTraceEntry> cascadeTrace) result;
+            try
+            {
+                result = ThemeCascadeResolver.ResolveWithTrace(cascadeInput);
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("Unknown preset"))
+            {
+                await Console.Error.WriteLineAsync($"Error: {ex.Message.Split(new[] { " (Parameter" }, StringSplitOptions.None)[0]}");
+                return 2;
+            }
+            var (theme, cascadeTrace) = result;
             cascadeSw.Stop();
             logger.LogInformation("Theme resolved (preset: {Preset}) in {Elapsed}ms", cascadeInput.PresetName, cascadeSw.ElapsedMilliseconds);
 
@@ -270,7 +288,8 @@ public static class ConvertCommand
             var emitOptions = new EmitOptions
             {
                 IncludeToc = toc,
-                TocDepth = tocDepth
+                TocDepth = tocDepth,
+                IncludeCoverPage = cover
             };
             var emitter = new DocxEmitter();
 
