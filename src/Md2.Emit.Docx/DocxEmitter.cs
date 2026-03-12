@@ -45,6 +45,17 @@ public class DocxEmitter : IFormatEmitter
             var elements = visitor.Visit(doc);
 
             var body = mainPart.Document.Body!;
+
+            // Insert TOC before main content if requested
+            if (options.IncludeToc)
+            {
+                var tocBuilder = new TocBuilder(paragraphBuilder);
+                foreach (var tocElement in tocBuilder.Build(options.TocDepth, theme))
+                {
+                    body.Append(tocElement);
+                }
+            }
+
             foreach (var element in elements)
             {
                 body.Append(element);

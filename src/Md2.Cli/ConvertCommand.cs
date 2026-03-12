@@ -64,6 +64,16 @@ public static class ConvertCommand
             Arity = ArgumentArity.ZeroOrMore,
         };
 
+        var tocOption = new Option<bool>(
+            aliases: new[] { "--toc" },
+            description: "Include a Table of Contents");
+
+        var tocDepthOption = new Option<int>(
+            aliases: new[] { "--toc-depth" },
+            description: "TOC heading depth (1-6, default 3)")
+        { IsRequired = false };
+        tocDepthOption.SetDefaultValue(3);
+
         var rootCommand = new RootCommand("md2 - Convert Markdown to polished DOCX files")
         {
             inputArgument,
@@ -74,7 +84,9 @@ public static class ConvertCommand
             presetOption,
             themeOption,
             templateOption,
-            styleOption
+            styleOption,
+            tocOption,
+            tocDepthOption
         };
 
         rootCommand.SetHandler(async (InvocationContext context) =>
@@ -88,8 +100,10 @@ public static class ConvertCommand
             var themeFile = context.ParseResult.GetValueForOption(themeOption);
             var templateFile = context.ParseResult.GetValueForOption(templateOption);
             var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
+            var toc = context.ParseResult.GetValueForOption(tocOption);
+            var tocDepth = context.ParseResult.GetValueForOption(tocDepthOption);
 
-            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, context);
+            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, context);
         });
 
         return rootCommand;
@@ -105,6 +119,8 @@ public static class ConvertCommand
         FileInfo? themeFile,
         FileInfo? templateFile,
         string[] styles,
+        bool toc,
+        int tocDepth,
         InvocationContext context)
     {
         // Validate input file exists
@@ -249,7 +265,11 @@ public static class ConvertCommand
 
             // Emit
             var emitSw = Stopwatch.StartNew();
-            var emitOptions = new EmitOptions();
+            var emitOptions = new EmitOptions
+            {
+                IncludeToc = toc,
+                TocDepth = tocDepth
+            };
             var emitter = new DocxEmitter();
 
             using var fileStream = File.Create(outputPath);

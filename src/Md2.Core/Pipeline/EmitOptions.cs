@@ -6,6 +6,7 @@ public class EmitOptions
 {
     public string? TemplatePath { get; set; }
     public bool IncludeToc { get; set; }
+    public int TocDepth { get; set; } = 3;
     public bool IncludeCoverPage { get; set; }
     public string? PageSize { get; set; }
     public string? Margins { get; set; }
