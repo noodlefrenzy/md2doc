@@ -379,8 +379,8 @@ public class DocxAstVisitor
         if (mermaidPath != null && File.Exists(mermaidPath))
         {
             var altText = "Mermaid diagram";
-            var imageParagraph = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, altText, _theme);
-            return new OpenXmlElement[] { imageParagraph };
+            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, altText, _theme);
+            return imageParagraphs.ToArray<OpenXmlElement>();
         }
 
         var code = string.Join("\n", codeBlock.Lines);
@@ -529,8 +529,8 @@ public class DocxAstVisitor
         if (link.IsImage)
         {
             var altText = ExtractInlineText(link);
-            var imageParagraph = _imageBuilder.BuildImage(_mainDocumentPart, link.Url, altText, _theme);
-            return new OpenXmlElement[] { imageParagraph };
+            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, link.Url, altText, _theme);
+            return imageParagraphs.ToArray<OpenXmlElement>();
         }
 
         // Extract link text

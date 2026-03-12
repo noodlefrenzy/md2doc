@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml Drawing elements for embedded images", deps: [ParagraphBuilder, DocumentFormat.OpenXml, DocumentFormat.OpenXml.Drawing, DocumentFormat.OpenXml.Drawing.Wordprocessing, DocumentFormat.OpenXml.Drawing.Pictures], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Builds OpenXml Drawing elements with optional captions", deps: [ParagraphBuilder, DocumentFormat.OpenXml, DocumentFormat.OpenXml.Drawing, DocumentFormat.OpenXml.Drawing.Wordprocessing, DocumentFormat.OpenXml.Drawing.Pictures], state: active, last: "sato@2026-03-12" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -36,13 +36,14 @@ public sealed class ImageBuilder
     }
 
     /// <summary>
-    /// Embeds an image into the document, returning a Paragraph containing the Drawing element.
+    /// Embeds an image into the document, returning paragraphs for the image and optional caption.
+    /// When altText is non-empty, a styled caption paragraph is appended below the image.
     /// </summary>
-    public Paragraph BuildImage(MainDocumentPart mainPart, string imagePath, string altText, ResolvedTheme theme)
+    public IReadOnlyList<Paragraph> BuildImage(MainDocumentPart mainPart, string imagePath, string? altText, ResolvedTheme theme)
     {
         if (!File.Exists(imagePath))
         {
-            return BuildPlaceholder(imagePath);
+            return new[] { BuildPlaceholder(imagePath) };
         }
 
         var contentType = GetImageContentType(imagePath);
@@ -68,10 +69,43 @@ public sealed class ImageBuilder
 
         var uniqueId = (uint)Interlocked.Increment(ref _imageCounter);
 
-        var drawing = CreateDrawingElement(relId, widthEmu, heightEmu, uniqueId, altText);
+        var drawing = CreateDrawingElement(relId, widthEmu, heightEmu, uniqueId, altText ?? string.Empty);
 
-        var paragraph = _paragraphBuilder.CreateBodyParagraph();
-        paragraph.Append(new Run(drawing));
+        var imageParagraph = _paragraphBuilder.CreateBodyParagraph();
+        imageParagraph.Append(new Run(drawing));
+
+        if (string.IsNullOrEmpty(altText))
+        {
+            return new[] { imageParagraph };
+        }
+
+        var captionParagraph = BuildCaptionParagraph(altText, theme);
+        return new[] { imageParagraph, captionParagraph };
+    }
+
+    private Paragraph BuildCaptionParagraph(string captionText, ResolvedTheme theme)
+    {
+        var captionFontSize = theme.BaseFontSize - 2;
+        var halfPoints = ((int)(captionFontSize * 2)).ToString();
+
+        var paragraph = new Paragraph(
+            new ParagraphProperties(
+                new ParagraphStyleId { Val = "Normal" },
+                new Justification { Val = JustificationValues.Center },
+                new SpacingBetweenLines { Before = "60", After = "120" }
+            ),
+            new Run(
+                new RunProperties(
+                    new RunFonts { Ascii = theme.BodyFont, HighAnsi = theme.BodyFont },
+                    new FontSize { Val = halfPoints },
+                    new FontSizeComplexScript { Val = halfPoints },
+                    new Color { Val = theme.BodyTextColor },
+                    new Italic()
+                ),
+                new Text(captionText) { Space = SpaceProcessingModeValues.Preserve }
+            )
+        );
+
         return paragraph;
     }
 
