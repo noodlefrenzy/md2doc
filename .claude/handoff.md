@@ -1,49 +1,53 @@
 ---
 agent-notes:
-  ctx: "session handoff — Sprint 7 complete, boundary not yet run"
-  deps: [CLAUDE.md, docs/sprints/sprint-7-plan.md, docs/code-map.md]
+  ctx: "session handoff — Sprint 8 Wave 1 complete, Wave 2 next"
+  deps: [CLAUDE.md, docs/sprints/sprint-8-plan.md, docs/code-map.md]
   state: active
   last: "grace@2026-03-12"
 ---
 # Session Handoff
 
 **Created:** 2026-03-12
-**Sprint:** 7 (complete — run `/sprint-boundary` to start Sprint 8)
-**Session summary:** Executed all 3 waves of Sprint 7 (11 items). Theme presets, extraction, CLI commands, TOC, cover page, cross-references, page headers. 536 tests green.
+**Sprint:** 8 (in progress — Wave 1 complete, Wave 2 next)
+**Session summary:** Completed Sprint 7 boundary + Sprint 8 Wave 1 (3 items). Total tests ~549.
 
-## What Was Done
+## What Was Done This Session
 
-### Sprint 7 Wave 1 — Tech Debt + Theme Foundation (3 items)
-- **#76** (S) refactor: ExtractInlineText shared helper — TD-004 resolved
-- **#33** (S) feat: image captions from alt text — 7 tests
-- **#43** (L) feat: 5 built-in style presets — 18 tests
+### Sprint 7 Boundary
+- Retro written (`docs/retrospectives/2026-03-12-sprint-7-retro.md`)
+- Board compliance: 11/11 items followed full status flow
+- Architecture gate: no new ADRs needed (all work covered by existing ADRs)
+- Tech debt: TD-002, TD-005, TD-006 remain accepted post-v1. No escalations.
+- Sprint 8 plan created with 3 waves
+- P0+P1 items added to board as Ready
 
-### Sprint 7 Wave 2 — Theme Extraction + CLI (4 items)
-- **#77** (S) fix: invoke ThemeValidator during convert flow
-- **#44** (L) feat: DocxStyleExtractor — 11 tests
-- **#45** (S) feat: `md2 theme extract` command
-- **#46** (S) feat: `md2 theme validate` + `md2 theme list` commands
-
-### Sprint 7 Wave 3 — Document Structure (4 items)
-- **#47** (M) feat: TOC generation with --toc, --toc-depth — 12 tests
-- **#48** (M) feat: cover page from front matter — 11 tests
-- **#49** (M) feat: cross-reference linking (bookmarks) — 18 tests
-- **#50** (M) feat: page headers with document title
+### Sprint 8 Wave 1 — Reliability + Polish (3 items)
+- **#56** (S) feat: DOCX metadata for subject/keywords — fixed guard condition bug, 5 tests
+- **#78** (M) fix: Playwright timeout and cancellation — CancellationToken threaded CLI→pipeline→transforms→renderers, 30s timeouts, user-friendly Chromium error, 8 tests
+- **#60** (M) chore: CLI polish — executable name `md2`, `--cover` flag, clean preset error messages
 
 ## Current State
 - **Branch:** main
-- **Last commit:** `08c959c` feat(emit-docx): page headers with document title
-- **Uncommitted changes:** this handoff file + overnight report
-- **Tests:** 536 passing across 8 projects
-- **Board status:** All Sprint 7 items in Done. All issues closed.
+- **Last commit:** `50ab6a6` chore(cli): polish help text, add --cover flag
+- **Uncommitted changes:** this handoff file
+- **Tests:** ~549 passing (536 + 5 + 8 new)
+- **Board status:** #56, #78, #60 in Done. Wave 2 items in Ready.
 
 ## What To Do Next (in order)
-1. Read `.claude/overnight-report-2026-03-12.md` — detailed report for the human
-2. **Run `/sprint-boundary`** — Sprint 7 retro, backlog sweep, tech debt review, Sprint 8 setup
-3. Plan Sprint 8 — likely candidates: preview HTML, performance budget, remaining polish
+1. **Sprint 8 Wave 2** — Validation + Diagnostics:
+   - **#57** (L) test(e2e): comprehensive 20-page document validation
+   - **#58** (M) test(visual): preset visual regression snapshots
+   - **#54** (M) feat(cli): md2 doctor diagnostic command
+2. If capacity remains, **Wave 3** (stretch):
+   - **#34** (M) perf: Mermaid and math rendering benchmarks
+   - **#55** (M) feat(cli): pipeline inspection (--dry-run, --stage, --emit)
 
-## Open Issues
-- **#78** (S) fix(emit-docx): Playwright timeout/cancellation gaps — operational audit finding
+## Board Item IDs (Sprint 8)
+- #57 board ID: `PVTI_lAHOAAxp6M4BRYzFzgnJdyo`
+- #58 board ID: `PVTI_lAHOAAxp6M4BRYzFzgnJdzU`
+- #54 board ID: `PVTI_lAHOAAxp6M4BRYzFzgnJdxo`
+
+## Open Tech Debt
 - **TD-002** Architecture smell (FrontMatterExtractor location) — accepted post-v1
 - **TD-005** Md2.Emit.Docx references Md2.Parsing for AdmonitionBlock — accepted post-v1
 - **TD-006** BrowserManager null-check not synchronized — accepted post-v1
