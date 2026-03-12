@@ -46,6 +46,17 @@ public class DocxEmitter : IFormatEmitter
 
             var body = mainPart.Document.Body!;
 
+            // Insert cover page before main content if requested
+            if (options.IncludeCoverPage)
+            {
+                var metadata = doc.GetDocumentMetadata();
+                var coverBuilder = new CoverPageBuilder(paragraphBuilder);
+                foreach (var coverElement in coverBuilder.Build(metadata, theme))
+                {
+                    body.Append(coverElement);
+                }
+            }
+
             // Insert TOC before main content if requested
             if (options.IncludeToc)
             {
