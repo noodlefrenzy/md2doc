@@ -97,6 +97,93 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## Syntax Highlighting
+
+### C# Example
+
+```csharp
+public class Calculator
+{
+    public double Add(double a, double b) => a + b;
+
+    public async Task<int> ComputeAsync(CancellationToken ct)
+    {
+        var result = await Task.Run(() => 42, ct);
+        return result;
+    }
+}
+```
+
+### Python Example
+
+```python
+def fibonacci(n: int) -> list[int]:
+    """Generate Fibonacci sequence up to n terms."""
+    fib = [0, 1]
+    for _ in range(2, n):
+        fib.append(fib[-1] + fib[-2])
+    return fib[:n]
+
+print(fibonacci(10))
+```
+
+## Mermaid Diagrams
+
+### Flowchart
+
+```mermaid
+graph TD;
+    A[Start] --> B{Is it working?};
+    B -->|Yes| C[Great!];
+    B -->|No| D[Debug];
+    D --> B;
+    C --> E[Ship it!];
+```
+
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Pipeline
+    participant DOCX
+
+    User->>CLI: md2 input.md -o output.docx
+    CLI->>Pipeline: Parse markdown
+    Pipeline->>Pipeline: Apply transforms
+    Pipeline->>DOCX: Emit OpenXML
+    DOCX-->>User: output.docx
+```
+
+## Mathematics
+
+### Inline Math
+
+The quadratic formula gives $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ for any quadratic equation $ax^2 + bx + c = 0$.
+
+Euler's identity states that $e^{i\pi} + 1 = 0$, connecting five fundamental constants.
+
+### Display Math
+
+The Gaussian integral:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}
+$$
+
+A matrix equation:
+
+$$
+\begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} x \\ y \end{pmatrix} = \begin{pmatrix} ax + by \\ cx + dy \end{pmatrix}
+$$
+
+Maxwell's equations in differential form:
+
+$$
+\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0}
+$$
+
 ## Combined Features
 
 Here's a paragraph with **bold**, *italic*, `code`, and a [link](https://example.com) --- all the inline features together... isn't that "nice"?

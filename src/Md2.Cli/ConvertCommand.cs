@@ -7,7 +7,9 @@ using Md2.Core.Exceptions;
 using Md2.Core.Pipeline;
 using Md2.Core.Transforms;
 using Md2.Emit.Docx;
+using Md2.Diagrams;
 using Md2.Highlight;
+using Md2.Math;
 using Md2.Parsing;
 using Microsoft.Extensions.Logging;
 
@@ -110,11 +112,23 @@ public static class ConvertCommand
             var parserOptions = new ParserOptions();
             var doc = pipeline.Parse(markdown, parserOptions);
 
+            // Set up browser-based rendering (Mermaid + Math)
+            await using var browserManager = new BrowserManager(
+                loggerFactory.CreateLogger<BrowserManager>());
+            var cacheDir = Path.Combine(Path.GetTempPath(), "md2-cache");
+            var diagramCache = new DiagramCache(cacheDir, MermaidRenderer.MermaidVersion);
+            var mermaidRenderer = new MermaidRenderer(browserManager, diagramCache,
+                loggerFactory.CreateLogger<MermaidRenderer>());
+            var latexConverter = new LatexToOmmlConverter(browserManager,
+                loggerFactory.CreateLogger<LatexToOmmlConverter>());
+
             // Transform
             pipeline.RegisterTransform(new YamlFrontMatterExtractor());
             pipeline.RegisterTransform(new SmartTypographyTransform());
+            pipeline.RegisterTransform(new MathBlockAnnotator(latexConverter));
+            pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
             pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
-            var transformOptions = new TransformOptions();
+            var transformOptions = new TransformOptions { RenderMermaid = true };
             var transformed = pipeline.Transform(doc, transformOptions);
 
             // Emit

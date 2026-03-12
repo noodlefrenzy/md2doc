@@ -15,7 +15,7 @@ namespace Md2.Diagrams;
 /// </summary>
 public sealed class MermaidRenderer
 {
-    internal const string MermaidVersion = "11.13.0";
+    public const string MermaidVersion = "11.13.0";
     private readonly BrowserManager _browserManager;
     private readonly DiagramCache _cache;
     private readonly ILogger<MermaidRenderer> _logger;

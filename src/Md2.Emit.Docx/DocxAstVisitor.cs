@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Markdig.Extensions.EmphasisExtras;
+using Markdig.Extensions.Mathematics;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Md2.Core.Ast;
@@ -67,6 +68,7 @@ public class DocxAstVisitor
             ParagraphBlock paragraph => VisitParagraph(paragraph),
             MdTable table => VisitTable(table),
             ListBlock list => VisitList(list),
+            MathBlock mathBlock => VisitMathBlock(mathBlock),
             FencedCodeBlock fencedCode => VisitFencedCodeBlock(fencedCode),
             QuoteBlock quote => VisitQuoteBlock(quote, 0),
             AdmonitionBlock admonition => VisitAdmonition(admonition),
@@ -372,6 +374,15 @@ public class DocxAstVisitor
 
     private IEnumerable<OpenXmlElement> VisitFencedCodeBlock(FencedCodeBlock codeBlock)
     {
+        // Check if this is a mermaid block with a rendered image
+        var mermaidPath = codeBlock.GetMermaidImagePath();
+        if (mermaidPath != null && File.Exists(mermaidPath))
+        {
+            var altText = "Mermaid diagram";
+            var imageParagraph = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, altText, _theme);
+            return new OpenXmlElement[] { imageParagraph };
+        }
+
         var code = string.Join("\n", codeBlock.Lines);
         var language = codeBlock.Info;
         var syntaxTokens = codeBlock.GetSyntaxTokens();
@@ -460,6 +471,7 @@ public class DocxAstVisitor
     {
         return inline switch
         {
+            MathInline mathInline => VisitMathInline(mathInline),
             LiteralInline literal => VisitLiteral(literal, bold, italic, strikethrough),
             EmphasisInline emphasis => VisitEmphasis(emphasis, bold, italic, strikethrough),
             CodeInline code => VisitCodeInline(code),
@@ -576,6 +588,110 @@ public class DocxAstVisitor
             LinkInline link => ExtractInlineText(link),
             _ => string.Empty
         };
+    }
+
+    private IEnumerable<OpenXmlElement> VisitMathBlock(MathBlock mathBlock)
+    {
+        var omml = mathBlock.GetOmmlXml();
+        if (string.IsNullOrEmpty(omml))
+        {
+            // Fallback: render as code block
+            var code = string.Join("\n", mathBlock.Lines);
+            var table = _codeBlockBuilder.Build(code, "latex", _theme, null);
+            return new OpenXmlElement[] { table };
+        }
+
+        return ParseOmmlIntoParagraph(omml, display: true);
+    }
+
+    private IEnumerable<OpenXmlElement> VisitMathInline(MathInline mathInline)
+    {
+        var omml = mathInline.GetOmmlXml();
+        if (string.IsNullOrEmpty(omml))
+        {
+            // Fallback: render as inline code
+            var run = _paragraphBuilder.CreateInlineCodeRun(mathInline.Content.ToString());
+            return new[] { run };
+        }
+
+        return ParseOmmlIntoRuns(omml);
+    }
+
+    private IEnumerable<OpenXmlElement> ParseOmmlIntoParagraph(string omml, bool display)
+    {
+        try
+        {
+            var mathElement = ParseOmmlXml(omml);
+            if (mathElement == null)
+                return Enumerable.Empty<OpenXmlElement>();
+
+            var paragraph = new Paragraph();
+            if (display)
+            {
+                // Center display math
+                paragraph.Append(new ParagraphProperties(
+                    new Justification { Val = JustificationValues.Center },
+                    new SpacingBetweenLines { Before = "120", After = "120" }
+                ));
+            }
+            paragraph.Append(mathElement);
+            return new OpenXmlElement[] { paragraph };
+        }
+        catch
+        {
+            return Enumerable.Empty<OpenXmlElement>();
+        }
+    }
+
+    private static IEnumerable<OpenXmlElement> ParseOmmlIntoRuns(string omml)
+    {
+        try
+        {
+            var mathElement = ParseOmmlXml(omml);
+            if (mathElement == null)
+                return Enumerable.Empty<OpenXmlElement>();
+
+            return new OpenXmlElement[] { mathElement };
+        }
+        catch
+        {
+            return Enumerable.Empty<OpenXmlElement>();
+        }
+    }
+
+    private static OpenXmlElement? ParseOmmlXml(string omml)
+    {
+        // The OMML from the XSLT may be wrapped in various elements.
+        // We need to find the <m:oMath> or <m:oMathPara> element and parse it.
+        try
+        {
+            // Wrap in a dummy element to parse
+            var xml = $"<root xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">{omml}</root>";
+            var doc = new System.Xml.XmlDocument();
+            doc.LoadXml(xml);
+
+            var nsMgr = new System.Xml.XmlNamespaceManager(doc.NameTable);
+            nsMgr.AddNamespace("m", "http://schemas.openxmlformats.org/officeDocument/2006/math");
+
+            // Try to find oMathPara first (display math), then oMath
+            var mathNode = doc.SelectSingleNode("//m:oMathPara", nsMgr)
+                ?? doc.SelectSingleNode("//m:oMath", nsMgr);
+
+            if (mathNode == null)
+                return null;
+
+            // Parse into Open XML SDK type
+            var outerXml = mathNode.OuterXml;
+            if (mathNode.LocalName == "oMathPara")
+            {
+                return new DocumentFormat.OpenXml.Math.Paragraph(outerXml);
+            }
+            return new DocumentFormat.OpenXml.Math.OfficeMath(outerXml);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static bool HasComplexInlines(ContainerInline container)
