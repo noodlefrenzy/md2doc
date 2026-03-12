@@ -18,6 +18,7 @@ A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture 
 - **Footnotes** — superscript references with bidirectional navigation
 - **Front matter** — YAML metadata (title, author, date) flows into document properties
 - **Page layout** — configurable margins, page size, page numbers in footer, widow/orphan control
+- **Theme engine** — YAML theme DSL with 4-layer cascade (CLI > theme > preset > template), built-in presets, schema validation
 
 ## Prerequisites
 
@@ -39,11 +40,23 @@ dotnet run --project src/Md2.Cli -- input.md
 # Specify output path
 dotnet run --project src/Md2.Cli -- input.md -o report.docx
 
-# Verbose output (shows paths, stack traces on error)
+# Use a theme preset
+dotnet run --project src/Md2.Cli -- input.md --preset default
+
+# Apply style overrides
+dotnet run --project src/Md2.Cli -- input.md --style colors.primary=FF0000 --style docx.baseFontSize=14
+
+# Use a custom theme YAML
+dotnet run --project src/Md2.Cli -- input.md --theme mytheme.yaml
+
+# Verbose output (shows cascade resolution, timing, stack traces)
 dotnet run --project src/Md2.Cli -- input.md -v
 
 # Quiet mode (suppress output path)
 dotnet run --project src/Md2.Cli -- input.md -q
+
+# Inspect theme cascade resolution
+dotnet run --project src/Md2.Cli -- theme resolve --preset default
 ```
 
 The output path is printed to stdout, so you can pipe it:
@@ -102,12 +115,14 @@ src/
   Md2.Parsing/      — Markdig configuration and extensions
   Md2.Emit.Docx/    — DOCX emitter (Open XML SDK)
   Md2.Highlight/    — Syntax highlighting (TextMateSharp)
+  Md2.Themes/       — YAML theme DSL, cascade resolver, presets
   Md2.Diagrams/     — Mermaid diagram rendering (Playwright)
   Md2.Math/         — LaTeX math to OMML conversion
 tests/
   Md2.Core.Tests/
   Md2.Parsing.Tests/
   Md2.Emit.Docx.Tests/
+  Md2.Themes.Tests/
   Md2.Highlight.Tests/
   Md2.Diagrams.Tests/
   Md2.Math.Tests/

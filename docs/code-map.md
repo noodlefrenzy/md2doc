@@ -121,9 +121,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 |------|----------|-------|
 | Parsing | `ThemeDefinition`, `ThemeParser` | YAML -> typed model |
 | Cascade | `ThemeCascadeResolver`, `ThemeCascadeInput` | 4-layer merge |
-| Variables | `VariableResolver` | `${...}` interpolation with cycle detection |
 | Presets | `PresetRegistry` | Loads embedded preset YAML files |
-| Extraction | `DocxStyleExtractor` | template.docx -> ThemeDefinition |
 | Validation | `ThemeValidator` | Schema validation with line numbers |
 | Formatting | `ThemeResolveFormatter` | Cascade trace -> aligned table output |
 | Safety | `TemplateSafetyChecker` | IRM, .doc, .docm, size limit checks |
