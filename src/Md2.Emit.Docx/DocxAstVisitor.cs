@@ -27,6 +27,7 @@ public class DocxAstVisitor
     private readonly ListBuilder _listBuilder;
     private readonly ImageBuilder _imageBuilder;
     private readonly CodeBlockBuilder _codeBlockBuilder;
+    private readonly BookmarkManager _bookmarkManager;
     private readonly MainDocumentPart _mainDocumentPart;
     private readonly ResolvedTheme _theme;
 
@@ -37,6 +38,7 @@ public class DocxAstVisitor
         _listBuilder = new ListBuilder(paragraphBuilder, mainDocumentPart);
         _imageBuilder = new ImageBuilder(paragraphBuilder);
         _codeBlockBuilder = new CodeBlockBuilder(paragraphBuilder);
+        _bookmarkManager = new BookmarkManager();
         _mainDocumentPart = mainDocumentPart;
         _theme = theme;
     }
@@ -399,16 +401,30 @@ public class DocxAstVisitor
     {
         var level = heading.Level;
 
+        Paragraph para;
         // For headings with complex inline content, build the paragraph with inline visitor
         if (heading.Inline != null && HasComplexInlines(heading.Inline))
         {
-            var paragraph = CreateHeadingParagraphWithInlines(level, heading.Inline);
-            return new[] { paragraph };
+            para = CreateHeadingParagraphWithInlines(level, heading.Inline);
+        }
+        else
+        {
+            // Simple heading: extract plain text
+            var text = ExtractPlainText(heading);
+            para = _paragraphBuilder.CreateHeadingParagraph(level, text);
         }
 
-        // Simple heading: extract plain text
-        var text = ExtractPlainText(heading);
-        var para = _paragraphBuilder.CreateHeadingParagraph(level, text);
+        // Add bookmark for cross-reference linking
+        var headingText = ExtractPlainText(heading);
+        var (slug, bookmarkId) = _bookmarkManager.RegisterHeading(headingText);
+
+        var bookmarkStart = new BookmarkStart { Id = bookmarkId.ToString(), Name = slug };
+        var bookmarkEnd = new BookmarkEnd { Id = bookmarkId.ToString() };
+
+        // Insert bookmark around all content in the paragraph
+        para.InsertAt(bookmarkStart, 0);
+        para.Append(bookmarkEnd);
+
         return new[] { para };
     }
 
@@ -535,6 +551,21 @@ public class DocxAstVisitor
 
         // Extract link text
         var linkText = ExtractInlineText(link);
+
+        // Handle internal anchor links (e.g., #heading-slug)
+        if (link.Url.StartsWith('#'))
+        {
+            var bookmarkId = _bookmarkManager.ResolveAnchor(link.Url);
+            if (bookmarkId.HasValue)
+            {
+                var hyperlinkRun = _paragraphBuilder.CreateHyperlinkRun(linkText);
+                var hyperlink = new Hyperlink(hyperlinkRun) { Anchor = link.Url.TrimStart('#') };
+                return new OpenXmlElement[] { hyperlink };
+            }
+            // Unresolved anchor — emit as plain text
+            var plainRun = _paragraphBuilder.CreateRun(linkText, bold, italic, strikethrough);
+            return new[] { plainRun };
+        }
 
         try
         {
