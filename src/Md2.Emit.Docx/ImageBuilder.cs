@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml Drawing elements for embedded images", deps: [ParagraphBuilder, DocumentFormat.OpenXml, DocumentFormat.OpenXml.Drawing, DocumentFormat.OpenXml.Drawing.Wordprocessing, DocumentFormat.OpenXml.Drawing.Pictures], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Builds OpenXml Drawing elements for embedded images", deps: [ParagraphBuilder, DocumentFormat.OpenXml, DocumentFormat.OpenXml.Drawing, DocumentFormat.OpenXml.Drawing.Wordprocessing, DocumentFormat.OpenXml.Drawing.Pictures], state: active, last: "sato@2026-03-12" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -164,8 +164,9 @@ public sealed class ImageBuilder
             // Default fallback
             return (EmuPerInch * 6, EmuPerInch * 4);
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"Warning: Could not read image dimensions from '{imagePath}': {ex.Message}");
             return (EmuPerInch * 6, EmuPerInch * 4);
         }
     }
