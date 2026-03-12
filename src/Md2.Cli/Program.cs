@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "CLI entry point with System.CommandLine", deps: [System.CommandLine, ConvertCommand, ThemeResolveCommand], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "CLI entry point with System.CommandLine", deps: [System.CommandLine, ConvertCommand, ThemeResolveCommand, ThemeExtractCommand, ThemeValidateCommand, ThemeListCommand], state: active, last: "sato@2026-03-12" }
 
 using System.CommandLine;
 using Md2.Cli;
@@ -8,6 +8,9 @@ var rootCommand = ConvertCommand.Create();
 // Theme subcommands
 var themeCommand = new Command("theme", "Theme management commands");
 themeCommand.AddCommand(ThemeResolveCommand.Create());
+themeCommand.AddCommand(ThemeExtractCommand.Create());
+themeCommand.AddCommand(ThemeValidateCommand.Create());
+themeCommand.AddCommand(ThemeListCommand.Create());
 rootCommand.AddCommand(themeCommand);
 
 return await rootCommand.InvokeAsync(args);
