@@ -39,6 +39,11 @@ public class DocxEmitter : IFormatEmitter
             // Create footer with page numbers
             var footerRelId = CreateFooterWithPageNumbers(mainPart);
 
+            // Create header with document title
+            var metadata = doc.GetDocumentMetadata();
+            var headerTitle = metadata?.Title ?? string.Empty;
+            var headerRelId = CreateHeaderWithTitle(mainPart, headerTitle, theme);
+
             // Walk AST and generate content
             var paragraphBuilder = new ParagraphBuilder(theme);
             var visitor = new DocxAstVisitor(paragraphBuilder, mainPart, theme);
@@ -49,7 +54,6 @@ public class DocxEmitter : IFormatEmitter
             // Insert cover page before main content if requested
             if (options.IncludeCoverPage)
             {
-                var metadata = doc.GetDocumentMetadata();
                 var coverBuilder = new CoverPageBuilder(paragraphBuilder);
                 foreach (var coverElement in coverBuilder.Build(metadata, theme))
                 {
@@ -73,7 +77,7 @@ public class DocxEmitter : IFormatEmitter
             }
 
             // Add section properties (page layout)
-            var sectionProperties = CreateSectionProperties(theme, footerRelId);
+            var sectionProperties = CreateSectionProperties(theme, footerRelId, headerRelId, options.IncludeCoverPage);
             body.Append(sectionProperties);
 
             // Set document properties from front matter
@@ -105,9 +109,48 @@ public class DocxEmitter : IFormatEmitter
         return mainPart.GetIdOfPart(footerPart);
     }
 
-    private static SectionProperties CreateSectionProperties(ResolvedTheme theme, string footerRelId)
+    private static string CreateHeaderWithTitle(MainDocumentPart mainPart, string title, ResolvedTheme theme)
     {
-        return new SectionProperties(
+        var headerPart = mainPart.AddNewPart<HeaderPart>();
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            headerPart.Header = new Header(new Paragraph());
+        }
+        else
+        {
+            var halfPoints = ((int)((theme.BaseFontSize - 1) * 2)).ToString();
+            headerPart.Header = new Header(
+                new Paragraph(
+                    new ParagraphProperties(
+                        new Justification { Val = JustificationValues.Right }
+                    ),
+                    new Run(
+                        new RunProperties(
+                            new RunFonts { Ascii = theme.BodyFont, HighAnsi = theme.BodyFont },
+                            new FontSize { Val = halfPoints },
+                            new FontSizeComplexScript { Val = halfPoints },
+                            new Color { Val = theme.BodyTextColor },
+                            new Italic()
+                        ),
+                        new Text(title) { Space = SpaceProcessingModeValues.Preserve }
+                    )
+                )
+            );
+        }
+
+        headerPart.Header.Save();
+        return mainPart.GetIdOfPart(headerPart);
+    }
+
+    private static SectionProperties CreateSectionProperties(ResolvedTheme theme, string footerRelId, string headerRelId, bool differentFirstPage)
+    {
+        var sectProps = new SectionProperties(
+            new HeaderReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = headerRelId
+            },
             new FooterReference
             {
                 Type = HeaderFooterValues.Default,
@@ -126,6 +169,14 @@ public class DocxEmitter : IFormatEmitter
                 Right = (uint)theme.MarginRight
             }
         );
+
+        // Different first page suppresses header/footer on cover page
+        if (differentFirstPage)
+        {
+            sectProps.Append(new TitlePage());
+        }
+
+        return sectProps;
     }
 
     private static void SetDocumentProperties(WordprocessingDocument wordDoc, MarkdownDocument markdownDoc)
