@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "TDD tests for ThemeValidator schema+warning checks", deps: [src/Md2.Themes/ThemeValidator.cs, src/Md2.Themes/ThemeDefinition.cs], state: red, last: "tara@2026-03-12" }
+// agent-notes: { ctx: "TDD tests for ThemeValidator schema+warning checks", deps: [src/Md2.Themes/ThemeValidator.cs, src/Md2.Themes/ThemeDefinition.cs], state: active, last: "sato@2026-03-12" }
 
 using Shouldly;
 using Md2.Themes;

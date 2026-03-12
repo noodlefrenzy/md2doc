@@ -120,12 +120,24 @@ public static partial class ThemeValidator
 
         if (page.Height is 0)
             issues.Add(new ThemeValidationIssue("Page height must be positive.", ValidationSeverity.Error, "Docx.Page.Height"));
+
+        ValidateNonNegativeInt(page.MarginTop, "Docx.Page.MarginTop", "Page margin top", issues);
+        ValidateNonNegativeInt(page.MarginBottom, "Docx.Page.MarginBottom", "Page margin bottom", issues);
+        ValidateNonNegativeInt(page.MarginLeft, "Docx.Page.MarginLeft", "Page margin left", issues);
+        ValidateNonNegativeInt(page.MarginRight, "Docx.Page.MarginRight", "Page margin right", issues);
     }
 
     private static void ValidatePositiveDouble(double? value, string propertyPath, string label, List<ThemeValidationIssue> issues)
     {
         if (value is null) return;
-        if (value.Value <= 0)
+        if (double.IsNaN(value.Value) || double.IsInfinity(value.Value))
+        {
+            issues.Add(new ThemeValidationIssue(
+                $"{label} must be a finite number, got {value.Value}.",
+                ValidationSeverity.Error,
+                propertyPath));
+        }
+        else if (value.Value <= 0)
         {
             issues.Add(new ThemeValidationIssue(
                 $"{label} must be positive, got {value.Value}.",
@@ -174,9 +186,9 @@ public static partial class ThemeValidator
     {
         if (page?.Width is null) return;
 
-        var marginLeft = page.MarginLeft ?? 0;
-        var marginRight = page.MarginRight ?? 0;
-        var contentWidth = (int)page.Width.Value - marginLeft - marginRight;
+        long marginLeft = page.MarginLeft ?? 0;
+        long marginRight = page.MarginRight ?? 0;
+        long contentWidth = (long)page.Width.Value - marginLeft - marginRight;
 
         if (contentWidth < MinContentWidthTwips)
         {
