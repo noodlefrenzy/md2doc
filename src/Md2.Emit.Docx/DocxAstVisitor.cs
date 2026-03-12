@@ -18,6 +18,7 @@ public class DocxAstVisitor
     private readonly TableBuilder _tableBuilder;
     private readonly ListBuilder _listBuilder;
     private readonly ImageBuilder _imageBuilder;
+    private readonly CodeBlockBuilder _codeBlockBuilder;
     private readonly MainDocumentPart _mainDocumentPart;
     private readonly ResolvedTheme _theme;
 
@@ -27,6 +28,7 @@ public class DocxAstVisitor
         _tableBuilder = new TableBuilder(paragraphBuilder, VisitInline);
         _listBuilder = new ListBuilder(paragraphBuilder, mainDocumentPart);
         _imageBuilder = new ImageBuilder(paragraphBuilder);
+        _codeBlockBuilder = new CodeBlockBuilder(paragraphBuilder);
         _mainDocumentPart = mainDocumentPart;
         _theme = theme;
     }
@@ -58,6 +60,7 @@ public class DocxAstVisitor
             ParagraphBlock paragraph => VisitParagraph(paragraph),
             MdTable table => VisitTable(table),
             ListBlock list => VisitList(list),
+            FencedCodeBlock fencedCode => VisitFencedCodeBlock(fencedCode),
             ThematicBreakBlock => VisitThematicBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
@@ -73,6 +76,14 @@ public class DocxAstVisitor
     private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
     {
         return _listBuilder.Build(list);
+    }
+
+    private IEnumerable<OpenXmlElement> VisitFencedCodeBlock(FencedCodeBlock codeBlock)
+    {
+        var code = string.Join("\n", codeBlock.Lines);
+        var language = codeBlock.Info;
+        var table = _codeBlockBuilder.Build(code, language, _theme);
+        return new OpenXmlElement[] { table };
     }
 
     private IEnumerable<OpenXmlElement> VisitThematicBreak()

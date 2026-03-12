@@ -15,6 +15,7 @@ public class ResolvedTheme
     public string SecondaryColor { get; set; } = "4A90D9";
     public string BodyTextColor { get; set; } = "333333";
     public string CodeBackgroundColor { get; set; } = "F5F5F5";
+    public string CodeBlockBorderColor { get; set; } = "E0E0E0";
     public string LinkColor { get; set; } = "4A90D9";
 
     // Font sizes in points

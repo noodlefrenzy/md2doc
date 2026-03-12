@@ -38,6 +38,11 @@ Another paragraph with normal body text.
 ### Tertiary Heading
 
 Final paragraph.
+
+```csharp
+var x = 42;
+Console.WriteLine(x);
+```
 ";
 
     private async Task<(WordprocessingDocument Doc, MemoryStream Stream)> RunFullPipeline(string markdown)
@@ -200,6 +205,21 @@ Final paragraph.
 
         var linkText = string.Join("", hyperlinks.First().Descendants<Text>().Select(t => t.Text));
         linkText.ShouldBe("Example");
+    }
+
+    [Fact]
+    public async Task FullPipeline_HasCodeBlock()
+    {
+        var (wordDoc, stream) = await RunFullPipeline(RepresentativeMarkdown);
+        using var _ = wordDoc;
+        using var __ = stream;
+
+        var body = wordDoc.MainDocumentPart!.Document.Body!;
+        var allText = string.Join(" ", body.Descendants<Text>().Select(t => t.Text));
+
+        // Code block content should be present
+        allText.ShouldContain("var x = 42");
+        allText.ShouldContain("Console.WriteLine(x)");
     }
 
     [Fact]
