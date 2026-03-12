@@ -116,7 +116,7 @@ public class TemplateSafetyTests
 
     private static string CreateTempFile(byte[] content, string extension)
     {
-        var path = Path.ChangeExtension(Path.GetTempFileName(), extension);
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}{extension}");
         File.WriteAllBytes(path, content);
         return path;
     }

@@ -68,57 +68,80 @@ public static class ThemeCascadeResolver
         if (input.Template is not null) layers.Add((input.Template, CascadeLayer.Template));
 
         var trace = new List<CascadeTraceEntry>();
+        var d = new ResolvedTheme(); // compile-time fallback defaults
         var theme = new ResolvedTheme();
 
         // Typography
-        theme.HeadingFont = ResolveString(layers, d => d.Typography?.HeadingFont, "HeadingFont", trace);
-        theme.BodyFont = ResolveString(layers, d => d.Typography?.BodyFont, "BodyFont", trace);
-        theme.MonoFont = ResolveString(layers, d => d.Typography?.MonoFont, "MonoFont", trace);
-        theme.MonoFontFallback = ResolveString(layers, d => d.Typography?.MonoFontFallback, "MonoFontFallback", trace);
+        theme.HeadingFont = ResolveString(layers, t => t.Typography?.HeadingFont, "HeadingFont", d.HeadingFont, trace);
+        theme.BodyFont = ResolveString(layers, t => t.Typography?.BodyFont, "BodyFont", d.BodyFont, trace);
+        theme.MonoFont = ResolveString(layers, t => t.Typography?.MonoFont, "MonoFont", d.MonoFont, trace);
+        theme.MonoFontFallback = ResolveString(layers, t => t.Typography?.MonoFontFallback, "MonoFontFallback", d.MonoFontFallback, trace);
 
         // Colors
-        theme.PrimaryColor = ResolveString(layers, d => d.Colors?.Primary, "PrimaryColor", trace);
-        theme.SecondaryColor = ResolveString(layers, d => d.Colors?.Secondary, "SecondaryColor", trace);
-        theme.BodyTextColor = ResolveString(layers, d => d.Colors?.BodyText, "BodyTextColor", trace);
-        theme.CodeBackgroundColor = ResolveString(layers, d => d.Colors?.CodeBackground, "CodeBackgroundColor", trace);
-        theme.CodeBlockBorderColor = ResolveString(layers, d => d.Colors?.CodeBorder, "CodeBlockBorderColor", trace);
-        theme.LinkColor = ResolveString(layers, d => d.Colors?.Link, "LinkColor", trace);
-        theme.TableHeaderBackground = ResolveString(layers, d => d.Colors?.TableHeaderBackground, "TableHeaderBackground", trace);
-        theme.TableHeaderForeground = ResolveString(layers, d => d.Colors?.TableHeaderForeground, "TableHeaderForeground", trace);
-        theme.TableBorderColor = ResolveString(layers, d => d.Colors?.TableBorder, "TableBorderColor", trace);
-        theme.TableAlternateRowBackground = ResolveString(layers, d => d.Colors?.TableAlternateRow, "TableAlternateRowBackground", trace);
-        theme.BlockquoteBorderColor = ResolveString(layers, d => d.Colors?.BlockquoteBorder, "BlockquoteBorderColor", trace);
-        theme.BlockquoteTextColor = ResolveString(layers, d => d.Colors?.BlockquoteText, "BlockquoteTextColor", trace);
+        theme.PrimaryColor = ResolveString(layers, t => t.Colors?.Primary, "PrimaryColor", d.PrimaryColor, trace);
+        theme.SecondaryColor = ResolveString(layers, t => t.Colors?.Secondary, "SecondaryColor", d.SecondaryColor, trace);
+        theme.BodyTextColor = ResolveString(layers, t => t.Colors?.BodyText, "BodyTextColor", d.BodyTextColor, trace);
+        theme.CodeBackgroundColor = ResolveString(layers, t => t.Colors?.CodeBackground, "CodeBackgroundColor", d.CodeBackgroundColor, trace);
+        theme.CodeBlockBorderColor = ResolveString(layers, t => t.Colors?.CodeBorder, "CodeBlockBorderColor", d.CodeBlockBorderColor, trace);
+        theme.LinkColor = ResolveString(layers, t => t.Colors?.Link, "LinkColor", d.LinkColor, trace);
+        theme.TableHeaderBackground = ResolveString(layers, t => t.Colors?.TableHeaderBackground, "TableHeaderBackground", d.TableHeaderBackground, trace);
+        theme.TableHeaderForeground = ResolveString(layers, t => t.Colors?.TableHeaderForeground, "TableHeaderForeground", d.TableHeaderForeground, trace);
+        theme.TableBorderColor = ResolveString(layers, t => t.Colors?.TableBorder, "TableBorderColor", d.TableBorderColor, trace);
+        theme.TableAlternateRowBackground = ResolveString(layers, t => t.Colors?.TableAlternateRow, "TableAlternateRowBackground", d.TableAlternateRowBackground, trace);
+        theme.BlockquoteBorderColor = ResolveString(layers, t => t.Colors?.BlockquoteBorder, "BlockquoteBorderColor", d.BlockquoteBorderColor, trace);
+        theme.BlockquoteTextColor = ResolveString(layers, t => t.Colors?.BlockquoteText, "BlockquoteTextColor", d.BlockquoteTextColor, trace);
 
         // Font sizes
-        theme.BaseFontSize = ResolveDouble(layers, d => d.Docx?.BaseFontSize, "BaseFontSize", trace);
-        theme.Heading1Size = ResolveDouble(layers, d => d.Docx?.Heading1Size, "Heading1Size", trace);
-        theme.Heading2Size = ResolveDouble(layers, d => d.Docx?.Heading2Size, "Heading2Size", trace);
-        theme.Heading3Size = ResolveDouble(layers, d => d.Docx?.Heading3Size, "Heading3Size", trace);
-        theme.Heading4Size = ResolveDouble(layers, d => d.Docx?.Heading4Size, "Heading4Size", trace);
-        theme.Heading5Size = ResolveDouble(layers, d => d.Docx?.Heading5Size, "Heading5Size", trace);
-        theme.Heading6Size = ResolveDouble(layers, d => d.Docx?.Heading6Size, "Heading6Size", trace);
-        theme.LineSpacing = ResolveDouble(layers, d => d.Docx?.LineSpacing, "LineSpacing", trace);
+        theme.BaseFontSize = Resolve(layers, t => t.Docx?.BaseFontSize, "BaseFontSize", d.BaseFontSize, trace);
+        theme.Heading1Size = Resolve(layers, t => t.Docx?.Heading1Size, "Heading1Size", d.Heading1Size, trace);
+        theme.Heading2Size = Resolve(layers, t => t.Docx?.Heading2Size, "Heading2Size", d.Heading2Size, trace);
+        theme.Heading3Size = Resolve(layers, t => t.Docx?.Heading3Size, "Heading3Size", d.Heading3Size, trace);
+        theme.Heading4Size = Resolve(layers, t => t.Docx?.Heading4Size, "Heading4Size", d.Heading4Size, trace);
+        theme.Heading5Size = Resolve(layers, t => t.Docx?.Heading5Size, "Heading5Size", d.Heading5Size, trace);
+        theme.Heading6Size = Resolve(layers, t => t.Docx?.Heading6Size, "Heading6Size", d.Heading6Size, trace);
+        theme.LineSpacing = Resolve(layers, t => t.Docx?.LineSpacing, "LineSpacing", d.LineSpacing, trace);
 
         // Table / blockquote
-        theme.TableBorderWidth = ResolveInt(layers, d => d.Docx?.TableBorderWidth, "TableBorderWidth", trace);
-        theme.BlockquoteIndentTwips = ResolveInt(layers, d => d.Docx?.BlockquoteIndentTwips, "BlockquoteIndentTwips", trace);
+        theme.TableBorderWidth = Resolve(layers, t => t.Docx?.TableBorderWidth, "TableBorderWidth", d.TableBorderWidth, trace);
+        theme.BlockquoteIndentTwips = Resolve(layers, t => t.Docx?.BlockquoteIndentTwips, "BlockquoteIndentTwips", d.BlockquoteIndentTwips, trace);
 
         // Page layout
-        theme.PageWidth = ResolveUint(layers, d => d.Docx?.Page?.Width, "PageWidth", trace);
-        theme.PageHeight = ResolveUint(layers, d => d.Docx?.Page?.Height, "PageHeight", trace);
-        theme.MarginTop = ResolveInt(layers, d => d.Docx?.Page?.MarginTop, "MarginTop", trace);
-        theme.MarginBottom = ResolveInt(layers, d => d.Docx?.Page?.MarginBottom, "MarginBottom", trace);
-        theme.MarginLeft = ResolveInt(layers, d => d.Docx?.Page?.MarginLeft, "MarginLeft", trace);
-        theme.MarginRight = ResolveInt(layers, d => d.Docx?.Page?.MarginRight, "MarginRight", trace);
+        theme.PageWidth = Resolve(layers, t => t.Docx?.Page?.Width, "PageWidth", d.PageWidth, trace);
+        theme.PageHeight = Resolve(layers, t => t.Docx?.Page?.Height, "PageHeight", d.PageHeight, trace);
+        theme.MarginTop = Resolve(layers, t => t.Docx?.Page?.MarginTop, "MarginTop", d.MarginTop, trace);
+        theme.MarginBottom = Resolve(layers, t => t.Docx?.Page?.MarginBottom, "MarginBottom", d.MarginBottom, trace);
+        theme.MarginLeft = Resolve(layers, t => t.Docx?.Page?.MarginLeft, "MarginLeft", d.MarginLeft, trace);
+        theme.MarginRight = Resolve(layers, t => t.Docx?.Page?.MarginRight, "MarginRight", d.MarginRight, trace);
 
         return (theme, trace);
+    }
+
+    private static T Resolve<T>(
+        List<(ThemeDefinition Def, CascadeLayer Layer)> layers,
+        Func<ThemeDefinition, T?> selector,
+        string propertyName,
+        T fallbackValue,
+        List<CascadeTraceEntry> trace) where T : struct
+    {
+        foreach (var (def, layer) in layers)
+        {
+            var value = selector(def);
+            if (value.HasValue)
+            {
+                trace.Add(new CascadeTraceEntry(propertyName, value.Value.ToString()!, layer));
+                return value.Value;
+            }
+        }
+
+        trace.Add(new CascadeTraceEntry(propertyName, fallbackValue.ToString()!, CascadeLayer.Preset));
+        return fallbackValue;
     }
 
     private static string ResolveString(
         List<(ThemeDefinition Def, CascadeLayer Layer)> layers,
         Func<ThemeDefinition, string?> selector,
         string propertyName,
+        string fallbackValue,
         List<CascadeTraceEntry> trace)
     {
         foreach (var (def, layer) in layers)
@@ -131,80 +154,7 @@ public static class ThemeCascadeResolver
             }
         }
 
-        // Fallback to ResolvedTheme default (should never happen if preset is complete)
-        var fallback = new ResolvedTheme();
-        var prop = typeof(ResolvedTheme).GetProperty(propertyName);
-        var defaultValue = prop?.GetValue(fallback)?.ToString() ?? "";
-        trace.Add(new CascadeTraceEntry(propertyName, defaultValue, CascadeLayer.Preset));
-        return defaultValue;
-    }
-
-    private static double ResolveDouble(
-        List<(ThemeDefinition Def, CascadeLayer Layer)> layers,
-        Func<ThemeDefinition, double?> selector,
-        string propertyName,
-        List<CascadeTraceEntry> trace)
-    {
-        foreach (var (def, layer) in layers)
-        {
-            var value = selector(def);
-            if (value.HasValue)
-            {
-                trace.Add(new CascadeTraceEntry(propertyName, value.Value.ToString(), layer));
-                return value.Value;
-            }
-        }
-
-        var fallback = new ResolvedTheme();
-        var prop = typeof(ResolvedTheme).GetProperty(propertyName);
-        var defaultValue = prop != null ? (double)prop.GetValue(fallback)! : 0;
-        trace.Add(new CascadeTraceEntry(propertyName, defaultValue.ToString(), CascadeLayer.Preset));
-        return defaultValue;
-    }
-
-    private static int ResolveInt(
-        List<(ThemeDefinition Def, CascadeLayer Layer)> layers,
-        Func<ThemeDefinition, int?> selector,
-        string propertyName,
-        List<CascadeTraceEntry> trace)
-    {
-        foreach (var (def, layer) in layers)
-        {
-            var value = selector(def);
-            if (value.HasValue)
-            {
-                trace.Add(new CascadeTraceEntry(propertyName, value.Value.ToString(), layer));
-                return value.Value;
-            }
-        }
-
-        var fallback = new ResolvedTheme();
-        var prop = typeof(ResolvedTheme).GetProperty(propertyName);
-        var defaultValue = prop != null ? (int)prop.GetValue(fallback)! : 0;
-        trace.Add(new CascadeTraceEntry(propertyName, defaultValue.ToString(), CascadeLayer.Preset));
-        return defaultValue;
-    }
-
-    private static uint ResolveUint(
-        List<(ThemeDefinition Def, CascadeLayer Layer)> layers,
-        Func<ThemeDefinition, uint?> selector,
-        string propertyName,
-        List<CascadeTraceEntry> trace)
-    {
-        foreach (var (def, layer) in layers)
-        {
-            var value = selector(def);
-            if (value.HasValue)
-            {
-                trace.Add(new CascadeTraceEntry(propertyName, value.Value.ToString(), layer));
-                return value.Value;
-            }
-        }
-
-        var fallback = new ResolvedTheme();
-        var prop = typeof(ResolvedTheme).GetProperty(propertyName);
-        var defaultValue = prop != null ? (uint)prop.GetValue(fallback)! : 0u;
-        trace.Add(new CascadeTraceEntry(propertyName, defaultValue.ToString(), CascadeLayer.Preset));
-        return defaultValue;
+        trace.Add(new CascadeTraceEntry(propertyName, fallbackValue, CascadeLayer.Preset));
+        return fallbackValue;
     }
 }

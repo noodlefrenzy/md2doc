@@ -19,7 +19,7 @@ agent-notes:
 
 | ID | Description | Category | Incurred | Why (business reason) | Est. cost to fix | Risk if left | Sprint to fix | Status |
 |----|-------------|----------|----------|----------------------|-----------------|-------------|--------------|--------|
-| TD-001 | Hardcoded default ResolvedTheme in Md2.Emit.Docx (Issue 13) | Hardcoded values | Sprint 2 | Theme engine not built yet; need working DOCX output before cascade exists | S (swap to real cascade) | Low: replaced in Sprint 6 | Sprint 6 | **ESCALATED P0** -- 3-sprint threshold (Sprint 2→5). Resolution: #36 ThemeCascadeResolver |
+| TD-001 | Hardcoded default ResolvedTheme in Md2.Emit.Docx (Issue 13) | Hardcoded values | Sprint 2 | Theme engine not built yet; need working DOCX output before cascade exists | S (swap to real cascade) | Low: replaced in Sprint 6 | Sprint 6 | **RESOLVED** -- #36 ThemeCascadeResolver replaces CreateDefault() |
 | TD-002 | FrontMatterExtractor in Md2.Core assembly with Md2.Parsing namespace | Architecture smell | Sprint 1 | Avoids circular dependency between Core and Parsing | S (move to shared types project if needed) | Low: works correctly, documented | Post-v1 | Open -- accepted |
 | TD-003 | No logging framework configured | Missing infrastructure | Sprint 2 | Focused on core functionality first | M (add ILogger, wire to --verbose) | Medium: harder to debug in production | Sprint 5 | **RESOLVED** -- #71 wired Microsoft.Extensions.Logging |
 | TD-004 | ExtractInlineText duplicated across TableBuilder, ListBuilder, DocxAstVisitor | Copy-paste duplication | Sprint 3 | Each builder needed inline text extraction; no shared utility existed yet | S (extract to shared static helper) | Low: identical logic, divergence risk | Post-v1 | Open -- accepted |
@@ -40,6 +40,7 @@ These are known shortcuts planned in the implementation. They are not yet incurr
 
 | ID | Description | Incurred | Resolved | How it was fixed |
 |----|-------------|----------|----------|-----------------|
+| TD-001 | Hardcoded default ResolvedTheme | Sprint 2 | Sprint 6 | #36: ThemeCascadeResolver with 4-layer cascade replaces CreateDefault() |
 | TD-003 | No logging framework configured | Sprint 2 | Sprint 5 | #71: Microsoft.Extensions.Logging wired with --debug flag, 27 log calls across 5 files |
 
 ## Debt Categories
