@@ -380,8 +380,8 @@ public class DocxAstVisitor
         var mermaidPath = codeBlock.GetMermaidImagePath();
         if (mermaidPath != null && File.Exists(mermaidPath))
         {
-            var altText = "Mermaid diagram";
-            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, altText, _theme);
+            // Empty alt text suppresses visible caption; "Mermaid diagram" used only as DocProperties.Description
+            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, "", _theme);
             return imageParagraphs.ToArray<OpenXmlElement>();
         }
 
@@ -541,12 +541,16 @@ public class DocxAstVisitor
         if (link.Url == null)
             return Enumerable.Empty<OpenXmlElement>();
 
-        // Handle image links
+        // Handle image links — inline context, so suppress caption (Paragraphs can't nest)
+        // Only return the Drawing run, not the caption paragraph
         if (link.IsImage)
         {
             var altText = ExtractInlineText(link);
             var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, link.Url, altText, _theme);
-            return imageParagraphs.ToArray<OpenXmlElement>();
+            // Return only Run elements (the Drawing), filter out Paragraph-level elements
+            return imageParagraphs
+                .SelectMany(p => p.ChildElements.OfType<Run>().Select(r => (OpenXmlElement)r.CloneNode(true)))
+                .ToArray();
         }
 
         // Extract link text
