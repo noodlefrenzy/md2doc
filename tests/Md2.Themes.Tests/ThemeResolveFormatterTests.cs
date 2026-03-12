@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "TDD red-phase tests for ThemeResolveFormatter output", deps: [src/Md2.Themes/ThemeResolveFormatter.cs, src/Md2.Themes/ThemeCascadeResolver.cs], state: red, last: "tara@2026-03-12" }
+// agent-notes: { ctx: "tests for ThemeResolveFormatter output", deps: [src/Md2.Themes/ThemeResolveFormatter.cs, src/Md2.Themes/ThemeCascadeResolver.cs], state: active, last: "sato@2026-03-12" }
 
 using Shouldly;
 using Md2.Core.Pipeline;

@@ -14,9 +14,12 @@ public static class ThemeResolveFormatter
 
     /// <summary>
     /// Formats the resolved theme and its cascade trace as a human-readable table.
+    /// The theme parameter is reserved for future use (e.g. showing computed values
+    /// alongside the cascade trace).
     /// </summary>
     public static string Format(ResolvedTheme theme, IReadOnlyList<CascadeTraceEntry> trace)
     {
+        _ = theme; // Reserved for future use — all data currently comes from trace
         const string propHeader = "Property";
         const string valHeader = "Value";
         const string srcHeader = "Source";

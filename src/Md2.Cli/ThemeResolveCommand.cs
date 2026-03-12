@@ -2,6 +2,7 @@
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Globalization;
 using Md2.Themes;
 
 namespace Md2.Cli;
@@ -131,132 +132,146 @@ public static class ThemeResolveCommand
             var key = style[..eqIndex].Trim().ToLowerInvariant();
             var value = style[(eqIndex + 1)..].Trim();
 
-            ApplyStyleOverride(theme, key, value);
+            if (!ApplyStyleOverride(theme, key, value))
+            {
+                Console.Error.WriteLine($"Warning: Unknown style property '{key}'. Ignoring.");
+            }
         }
 
         return theme;
     }
 
-    private static void ApplyStyleOverride(ThemeDefinition theme, string key, string value)
+    // ── Data-driven style override registry ──────────────────────────────
+
+    private delegate void StringSetter(ThemeDefinition t, string v);
+    private delegate void DoubleSetter(ThemeDefinition t, double v);
+    private delegate void IntSetter(ThemeDefinition t, int v);
+    private delegate void UintSetter(ThemeDefinition t, uint v);
+
+    private static readonly Dictionary<string, StringSetter> StringOverrides = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Strip optional section prefix for flat keys
-        var effectiveKey = key.Contains('.') ? key : key;
+        ["typography.headingfont"] = (t, v) => { t.Typography ??= new(); t.Typography.HeadingFont = v; },
+        ["headingfont"] = (t, v) => { t.Typography ??= new(); t.Typography.HeadingFont = v; },
+        ["typography.bodyfont"] = (t, v) => { t.Typography ??= new(); t.Typography.BodyFont = v; },
+        ["bodyfont"] = (t, v) => { t.Typography ??= new(); t.Typography.BodyFont = v; },
+        ["typography.monofont"] = (t, v) => { t.Typography ??= new(); t.Typography.MonoFont = v; },
+        ["monofont"] = (t, v) => { t.Typography ??= new(); t.Typography.MonoFont = v; },
+        ["typography.monofontfallback"] = (t, v) => { t.Typography ??= new(); t.Typography.MonoFontFallback = v; },
+        ["monofontfallback"] = (t, v) => { t.Typography ??= new(); t.Typography.MonoFontFallback = v; },
+        ["colors.primary"] = (t, v) => { t.Colors ??= new(); t.Colors.Primary = v; },
+        ["primary"] = (t, v) => { t.Colors ??= new(); t.Colors.Primary = v; },
+        ["colors.secondary"] = (t, v) => { t.Colors ??= new(); t.Colors.Secondary = v; },
+        ["secondary"] = (t, v) => { t.Colors ??= new(); t.Colors.Secondary = v; },
+        ["colors.bodytext"] = (t, v) => { t.Colors ??= new(); t.Colors.BodyText = v; },
+        ["bodytext"] = (t, v) => { t.Colors ??= new(); t.Colors.BodyText = v; },
+        ["colors.codebackground"] = (t, v) => { t.Colors ??= new(); t.Colors.CodeBackground = v; },
+        ["codebackground"] = (t, v) => { t.Colors ??= new(); t.Colors.CodeBackground = v; },
+        ["colors.codeborder"] = (t, v) => { t.Colors ??= new(); t.Colors.CodeBorder = v; },
+        ["codeborder"] = (t, v) => { t.Colors ??= new(); t.Colors.CodeBorder = v; },
+        ["colors.link"] = (t, v) => { t.Colors ??= new(); t.Colors.Link = v; },
+        ["link"] = (t, v) => { t.Colors ??= new(); t.Colors.Link = v; },
+        ["colors.tableheaderbackground"] = (t, v) => { t.Colors ??= new(); t.Colors.TableHeaderBackground = v; },
+        ["tableheaderbackground"] = (t, v) => { t.Colors ??= new(); t.Colors.TableHeaderBackground = v; },
+        ["colors.tableheaderforeground"] = (t, v) => { t.Colors ??= new(); t.Colors.TableHeaderForeground = v; },
+        ["tableheaderforeground"] = (t, v) => { t.Colors ??= new(); t.Colors.TableHeaderForeground = v; },
+        ["colors.tableborder"] = (t, v) => { t.Colors ??= new(); t.Colors.TableBorder = v; },
+        ["tableborder"] = (t, v) => { t.Colors ??= new(); t.Colors.TableBorder = v; },
+        ["colors.tablealternaterow"] = (t, v) => { t.Colors ??= new(); t.Colors.TableAlternateRow = v; },
+        ["tablealternaterow"] = (t, v) => { t.Colors ??= new(); t.Colors.TableAlternateRow = v; },
+        ["colors.blockquoteborder"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteBorder = v; },
+        ["blockquoteborder"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteBorder = v; },
+        ["colors.blockquotetext"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteText = v; },
+        ["blockquotetext"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteText = v; },
+    };
 
-        switch (effectiveKey)
+    private static readonly Dictionary<string, DoubleSetter> DoubleOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["docx.basefontsize"] = (t, v) => { t.Docx ??= new(); t.Docx.BaseFontSize = v; },
+        ["basefontsize"] = (t, v) => { t.Docx ??= new(); t.Docx.BaseFontSize = v; },
+        ["docx.heading1size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading1Size = v; },
+        ["heading1size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading1Size = v; },
+        ["docx.heading2size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading2Size = v; },
+        ["heading2size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading2Size = v; },
+        ["docx.heading3size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading3Size = v; },
+        ["heading3size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading3Size = v; },
+        ["docx.heading4size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading4Size = v; },
+        ["heading4size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading4Size = v; },
+        ["docx.heading5size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading5Size = v; },
+        ["heading5size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading5Size = v; },
+        ["docx.heading6size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading6Size = v; },
+        ["heading6size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading6Size = v; },
+        ["docx.linespacing"] = (t, v) => { t.Docx ??= new(); t.Docx.LineSpacing = v; },
+        ["linespacing"] = (t, v) => { t.Docx ??= new(); t.Docx.LineSpacing = v; },
+    };
+
+    private static readonly Dictionary<string, IntSetter> IntOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["docx.tableborderwidth"] = (t, v) => { t.Docx ??= new(); t.Docx.TableBorderWidth = v; },
+        ["tableborderwidth"] = (t, v) => { t.Docx ??= new(); t.Docx.TableBorderWidth = v; },
+        ["docx.blockquoteindenttwips"] = (t, v) => { t.Docx ??= new(); t.Docx.BlockquoteIndentTwips = v; },
+        ["blockquoteindenttwips"] = (t, v) => { t.Docx ??= new(); t.Docx.BlockquoteIndentTwips = v; },
+        ["docx.page.margintop"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginTop = v; },
+        ["margintop"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginTop = v; },
+        ["docx.page.marginbottom"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginBottom = v; },
+        ["marginbottom"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginBottom = v; },
+        ["docx.page.marginleft"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginLeft = v; },
+        ["marginleft"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginLeft = v; },
+        ["docx.page.marginright"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginRight = v; },
+        ["marginright"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.MarginRight = v; },
+    };
+
+    private static readonly Dictionary<string, UintSetter> UintOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["docx.page.width"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.Width = v; },
+        ["pagewidth"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.Width = v; },
+        ["docx.page.height"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.Height = v; },
+        ["pageheight"] = (t, v) => { t.Docx ??= new(); t.Docx.Page ??= new(); t.Docx.Page.Height = v; },
+    };
+
+    /// <summary>
+    /// Applies a single style override. Returns false if the key is unknown.
+    /// </summary>
+    private static bool ApplyStyleOverride(ThemeDefinition theme, string key, string value)
+    {
+        if (StringOverrides.TryGetValue(key, out var strSetter))
         {
-            // Typography
-            case "typography.headingfont" or "headingfont":
-                theme.Typography ??= new ThemeTypographySection();
-                theme.Typography.HeadingFont = value;
-                break;
-            case "typography.bodyfont" or "bodyfont":
-                theme.Typography ??= new ThemeTypographySection();
-                theme.Typography.BodyFont = value;
-                break;
-            case "typography.monofont" or "monofont":
-                theme.Typography ??= new ThemeTypographySection();
-                theme.Typography.MonoFont = value;
-                break;
-            case "typography.monofontfallback" or "monofontfallback":
-                theme.Typography ??= new ThemeTypographySection();
-                theme.Typography.MonoFontFallback = value;
-                break;
-
-            // Colors
-            case "colors.primary" or "primary":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.Primary = value;
-                break;
-            case "colors.secondary" or "secondary":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.Secondary = value;
-                break;
-            case "colors.bodytext" or "bodytext":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.BodyText = value;
-                break;
-            case "colors.codebackground" or "codebackground":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.CodeBackground = value;
-                break;
-            case "colors.codeborder" or "codeborder":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.CodeBorder = value;
-                break;
-            case "colors.link" or "link":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.Link = value;
-                break;
-            case "colors.tableheaderbackground" or "tableheaderbackground":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.TableHeaderBackground = value;
-                break;
-            case "colors.tableheaderforeground" or "tableheaderforeground":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.TableHeaderForeground = value;
-                break;
-            case "colors.tableborder" or "tableborder":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.TableBorder = value;
-                break;
-            case "colors.tablealternaterow" or "tablealternaterow":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.TableAlternateRow = value;
-                break;
-            case "colors.blockquoteborder" or "blockquoteborder":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.BlockquoteBorder = value;
-                break;
-            case "colors.blockquotetext" or "blockquotetext":
-                theme.Colors ??= new ThemeColorsSection();
-                theme.Colors.BlockquoteText = value;
-                break;
-
-            // Docx sizes
-            case "docx.basefontsize" or "basefontsize":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var baseFs)) theme.Docx.BaseFontSize = baseFs;
-                break;
-            case "docx.heading1size" or "heading1size":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var h1)) theme.Docx.Heading1Size = h1;
-                break;
-            case "docx.heading2size" or "heading2size":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var h2)) theme.Docx.Heading2Size = h2;
-                break;
-            case "docx.heading3size" or "heading3size":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var h3)) theme.Docx.Heading3Size = h3;
-                break;
-            case "docx.heading4size" or "heading4size":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var h4)) theme.Docx.Heading4Size = h4;
-                break;
-            case "docx.heading5size" or "heading5size":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var h5)) theme.Docx.Heading5Size = h5;
-                break;
-            case "docx.heading6size" or "heading6size":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var h6)) theme.Docx.Heading6Size = h6;
-                break;
-            case "docx.linespacing" or "linespacing":
-                theme.Docx ??= new ThemeDocxSection();
-                if (double.TryParse(value, out var ls)) theme.Docx.LineSpacing = ls;
-                break;
-            case "docx.tableborderwidth" or "tableborderwidth":
-                theme.Docx ??= new ThemeDocxSection();
-                if (int.TryParse(value, out var tbw)) theme.Docx.TableBorderWidth = tbw;
-                break;
-            case "docx.blockquoteindenttwips" or "blockquoteindenttwips":
-                theme.Docx ??= new ThemeDocxSection();
-                if (int.TryParse(value, out var bqi)) theme.Docx.BlockquoteIndentTwips = bqi;
-                break;
-
-            default:
-                Console.Error.WriteLine($"Warning: Unknown style property '{key}'. Ignoring.");
-                break;
+            strSetter(theme, value);
+            return true;
         }
+
+        if (DoubleOverrides.TryGetValue(key, out var dblSetter))
+        {
+            if (!double.TryParse(value, CultureInfo.InvariantCulture, out var dblVal))
+            {
+                Console.Error.WriteLine($"Warning: Cannot parse '{value}' as a number for '{key}'. Ignoring.");
+                return true; // Key is known, value is bad — don't also warn about unknown key
+            }
+            dblSetter(theme, dblVal);
+            return true;
+        }
+
+        if (IntOverrides.TryGetValue(key, out var intSetter))
+        {
+            if (!int.TryParse(value, CultureInfo.InvariantCulture, out var intVal))
+            {
+                Console.Error.WriteLine($"Warning: Cannot parse '{value}' as an integer for '{key}'. Ignoring.");
+                return true;
+            }
+            intSetter(theme, intVal);
+            return true;
+        }
+
+        if (UintOverrides.TryGetValue(key, out var uintSetter))
+        {
+            if (!uint.TryParse(value, CultureInfo.InvariantCulture, out var uintVal))
+            {
+                Console.Error.WriteLine($"Warning: Cannot parse '{value}' as a positive integer for '{key}'. Ignoring.");
+                return true;
+            }
+            uintSetter(theme, uintVal);
+            return true;
+        }
+
+        return false;
     }
 }
