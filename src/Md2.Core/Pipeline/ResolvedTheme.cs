@@ -34,6 +34,11 @@ public class ResolvedTheme
     public int TableBorderWidth { get; set; } = 4; // in eighth-points
     public string TableAlternateRowBackground { get; set; } = "F2F2F2";
 
+    // Blockquote styling
+    public string BlockquoteBorderColor { get; set; } = "4A90D9";
+    public string BlockquoteTextColor { get; set; } = "555555";
+    public int BlockquoteIndentTwips { get; set; } = 720; // 0.5 inches per nesting level
+
     // Line spacing (multiplier, e.g. 1.15)
     public double LineSpacing { get; set; } = 1.15;
 

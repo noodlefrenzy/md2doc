@@ -62,6 +62,7 @@ public class DocxAstVisitor
             MdTable table => VisitTable(table),
             ListBlock list => VisitList(list),
             FencedCodeBlock fencedCode => VisitFencedCodeBlock(fencedCode),
+            QuoteBlock quote => VisitQuoteBlock(quote, 0),
             ThematicBreakBlock => VisitThematicBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
@@ -77,6 +78,69 @@ public class DocxAstVisitor
     private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
     {
         return _listBuilder.Build(list);
+    }
+
+    private IEnumerable<OpenXmlElement> VisitQuoteBlock(QuoteBlock quote, int nestingLevel)
+    {
+        var elements = new List<OpenXmlElement>();
+        var indentTwips = _theme.BlockquoteIndentTwips * (nestingLevel + 1);
+
+        foreach (var block in quote)
+        {
+            if (block is QuoteBlock nestedQuote)
+            {
+                elements.AddRange(VisitQuoteBlock(nestedQuote, nestingLevel + 1));
+            }
+            else if (block is ParagraphBlock paragraphBlock)
+            {
+                var paragraph = _paragraphBuilder.CreateBodyParagraph();
+
+                // Add blockquote styling: left border, indentation, italic
+                var props = paragraph.ParagraphProperties!;
+                props.Append(new ParagraphBorders(
+                    new LeftBorder
+                    {
+                        Val = BorderValues.Single,
+                        Size = 18,
+                        Space = 4,
+                        Color = _theme.BlockquoteBorderColor
+                    }
+                ));
+                props.Append(new Indentation { Left = indentTwips.ToString() });
+
+                if (paragraphBlock.Inline != null)
+                {
+                    var runs = VisitInlineContainer(paragraphBlock.Inline, false, true, false);
+                    foreach (var run in runs)
+                    {
+                        // Override color on runs
+                        if (run is Run r)
+                        {
+                            var runProps = r.RunProperties;
+                            if (runProps != null)
+                            {
+                                var color = runProps.Color;
+                                if (color != null)
+                                    color.Val = _theme.BlockquoteTextColor;
+                                else
+                                    runProps.Append(new Color { Val = _theme.BlockquoteTextColor });
+                            }
+                        }
+                        paragraph.Append(run);
+                    }
+                }
+
+                elements.Add(paragraph);
+            }
+            else
+            {
+                // Other block types inside blockquote (lists, code blocks, etc.)
+                var innerElements = VisitBlock(block);
+                elements.AddRange(innerElements);
+            }
+        }
+
+        return elements;
     }
 
     private IEnumerable<OpenXmlElement> VisitFencedCodeBlock(FencedCodeBlock codeBlock)
