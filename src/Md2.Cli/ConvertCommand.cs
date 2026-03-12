@@ -2,6 +2,7 @@
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics;
 using Markdig;
 using Md2.Core.Exceptions;
 using Md2.Core.Pipeline;
@@ -136,14 +137,18 @@ public static class ConvertCommand
 
         try
         {
+            var totalSw = Stopwatch.StartNew();
             logger.LogInformation("Reading: {Path}", input.FullName);
 
             var markdown = await File.ReadAllTextAsync(input.FullName);
 
             // Parse
+            var parseSw = Stopwatch.StartNew();
             var pipeline = new ConversionPipeline(logger);
             var parserOptions = new ParserOptions();
             var doc = pipeline.Parse(markdown, parserOptions);
+            parseSw.Stop();
+            logger.LogInformation("Parse: {Elapsed}ms", parseSw.ElapsedMilliseconds);
 
             // Set up browser-based rendering (Mermaid + Math)
             await using var browserManager = new BrowserManager(
@@ -156,6 +161,7 @@ public static class ConvertCommand
                 loggerFactory.CreateLogger<LatexToOmmlConverter>());
 
             // Transform
+            var transformSw = Stopwatch.StartNew();
             pipeline.RegisterTransform(new YamlFrontMatterExtractor());
             pipeline.RegisterTransform(new SmartTypographyTransform());
             pipeline.RegisterTransform(new MathBlockAnnotator(latexConverter));
@@ -163,8 +169,11 @@ public static class ConvertCommand
             pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
             var transformOptions = new TransformOptions { RenderMermaid = true };
             var transformed = pipeline.Transform(doc, transformOptions);
+            transformSw.Stop();
+            logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
 
             // Resolve theme via 4-layer cascade
+            var cascadeSw = Stopwatch.StartNew();
             var cascadeInput = new ThemeCascadeInput
             {
                 PresetName = preset ?? "default"
@@ -201,17 +210,31 @@ public static class ConvertCommand
                 cascadeInput.CliOverrides = ThemeResolveCommand.ParseStyleOverrides(styles);
             }
 
-            var theme = ThemeCascadeResolver.Resolve(cascadeInput);
-            logger.LogInformation("Theme resolved (preset: {Preset})", cascadeInput.PresetName);
+            var (theme, cascadeTrace) = ThemeCascadeResolver.ResolveWithTrace(cascadeInput);
+            cascadeSw.Stop();
+            logger.LogInformation("Theme resolved (preset: {Preset}) in {Elapsed}ms", cascadeInput.PresetName, cascadeSw.ElapsedMilliseconds);
+
+            // Show cascade trace in verbose mode
+            if (verbose || debug)
+            {
+                await Console.Error.WriteLineAsync();
+                await Console.Error.WriteLineAsync("Cascade resolution:");
+                await Console.Error.WriteAsync(ThemeResolveFormatter.Format(theme, cascadeTrace));
+                await Console.Error.WriteLineAsync();
+            }
 
             // Emit
+            var emitSw = Stopwatch.StartNew();
             var emitOptions = new EmitOptions();
             var emitter = new DocxEmitter();
 
             using var fileStream = File.Create(outputPath);
             await pipeline.Emit(transformed, theme, emitter, emitOptions, fileStream);
+            emitSw.Stop();
+            logger.LogInformation("Emit: {Elapsed}ms", emitSw.ElapsedMilliseconds);
 
-            logger.LogInformation("Written: {Path}", outputPath);
+            totalSw.Stop();
+            logger.LogInformation("Total: {Elapsed}ms — Written: {Path}", totalSw.ElapsedMilliseconds, outputPath);
 
             // Output path to stdout unless suppressed
             if (!quiet)
