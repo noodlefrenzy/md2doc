@@ -120,17 +120,8 @@ public sealed class ListBuilder
         return _paragraphBuilder.CreateRun(text);
     }
 
-    private static string ExtractInlineText(Markdig.Syntax.Inlines.Inline inline)
-    {
-        return inline switch
-        {
-            LiteralInline literal => literal.Content.ToString(),
-            EmphasisInline emphasis => string.Join("", emphasis.Select(ExtractInlineText)),
-            CodeInline code => code.Content,
-            ContainerInline container => string.Join("", container.Select(ExtractInlineText)),
-            _ => string.Empty
-        };
-    }
+    private static string ExtractInlineText(Markdig.Syntax.Inlines.Inline inline) =>
+        InlineTextExtractor.Extract(inline);
 
     private static bool? GetTaskListChecked(ListItemBlock listItem)
     {

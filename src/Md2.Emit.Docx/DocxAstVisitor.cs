@@ -565,30 +565,11 @@ public class DocxAstVisitor
         if (block.Inline == null)
             return string.Empty;
 
-        return ExtractInlineText(block.Inline);
+        return InlineTextExtractor.Extract(block.Inline);
     }
 
-    private static string ExtractInlineText(ContainerInline container)
-    {
-        var parts = new List<string>();
-        foreach (var inline in container)
-        {
-            parts.Add(ExtractInlineTextSingle(inline));
-        }
-        return string.Join("", parts);
-    }
-
-    private static string ExtractInlineTextSingle(Markdig.Syntax.Inlines.Inline inline)
-    {
-        return inline switch
-        {
-            LiteralInline literal => literal.Content.ToString(),
-            EmphasisInline emphasis => ExtractInlineText(emphasis),
-            CodeInline code => code.Content,
-            LinkInline link => ExtractInlineText(link),
-            _ => string.Empty
-        };
-    }
+    private static string ExtractInlineText(ContainerInline container) =>
+        InlineTextExtractor.Extract(container);
 
     private IEnumerable<OpenXmlElement> VisitMathBlock(MathBlock mathBlock)
     {
