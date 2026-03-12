@@ -1,0 +1,49 @@
+# agent-notes: { ctx: "default preset — matches ResolvedTheme.CreateDefault()", deps: [ThemeDefinition.cs], state: active, last: "sato@2026-03-12" }
+#
+# Default preset for md2. These values match the hardcoded defaults
+# that have been in use since Sprint 2. This file replaces the
+# hardcoded ResolvedTheme.CreateDefault() as the source of truth.
+
+meta:
+  name: default
+  description: Clean, professional defaults — Calibri headings, Cambria body
+  version: 1
+
+typography:
+  headingFont: Calibri
+  bodyFont: Cambria
+  monoFont: "Cascadia Code"
+  monoFontFallback: Consolas
+
+colors:
+  primary: "#1B3A5C"
+  secondary: "#4A90D9"
+  bodyText: "#333333"
+  codeBackground: "#F5F5F5"
+  codeBorder: "#E0E0E0"
+  link: "#4A90D9"
+  tableHeaderBackground: "#1B3A5C"
+  tableHeaderForeground: "#FFFFFF"
+  tableBorder: "#BFBFBF"
+  tableAlternateRow: "#F2F2F2"
+  blockquoteBorder: "#4A90D9"
+  blockquoteText: "#555555"
+
+docx:
+  baseFontSize: 11
+  heading1Size: 28
+  heading2Size: 22
+  heading3Size: 16
+  heading4Size: 13
+  heading5Size: 11
+  heading6Size: 11
+  lineSpacing: 1.15
+  tableBorderWidth: 4
+  blockquoteIndentTwips: 720
+  page:
+    width: 11906
+    height: 16838
+    marginTop: 1440
+    marginBottom: 1440
+    marginLeft: 1800
+    marginRight: 1800
