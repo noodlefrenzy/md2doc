@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources\mermaid.min.js" LogicalName="Md2.Diagrams.mermaid.min.js" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Md2.Core\Md2.Core.csproj" />
   </ItemGroup>
 

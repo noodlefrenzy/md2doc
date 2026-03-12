@@ -66,7 +66,7 @@ public sealed class BrowserManager : IAsyncDisposable
         {
             Headless = true,
         });
-        _logger.LogInformation("Chromium browser launched (PID: {ProcessId})", _browser.Contexts.Count);
+        _logger.LogInformation("Chromium browser launched ({ContextCount} contexts)", _browser.Contexts.Count);
 
         return _browser;
     }
