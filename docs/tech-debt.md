@@ -13,7 +13,7 @@ agent-notes:
 <!-- Debt open for 3+ sprints is automatically escalated by Grace (override authority per persona definition). -->
 
 **Project:** md2
-**Last reviewed:** 2026-03-12 (Sprint 6 boundary)
+**Last reviewed:** 2026-03-12 (Sprint 7 boundary)
 
 ## Active Debt
 
@@ -22,7 +22,7 @@ agent-notes:
 | TD-001 | Hardcoded default ResolvedTheme in Md2.Emit.Docx (Issue 13) | Hardcoded values | Sprint 2 | Theme engine not built yet; need working DOCX output before cascade exists | S (swap to real cascade) | Low: replaced in Sprint 6 | Sprint 6 | **RESOLVED** -- #36 ThemeCascadeResolver replaces CreateDefault() |
 | TD-002 | FrontMatterExtractor in Md2.Core assembly with Md2.Parsing namespace | Architecture smell | Sprint 1 | Avoids circular dependency between Core and Parsing | S (move to shared types project if needed) | Low: works correctly, documented | Post-v1 | Open -- accepted |
 | TD-003 | No logging framework configured | Missing infrastructure | Sprint 2 | Focused on core functionality first | M (add ILogger, wire to --verbose) | Medium: harder to debug in production | Sprint 5 | **RESOLVED** -- #71 wired Microsoft.Extensions.Logging |
-| TD-004 | ExtractInlineText duplicated across TableBuilder, ListBuilder, DocxAstVisitor | Copy-paste duplication | Sprint 3 | Each builder needed inline text extraction; no shared utility existed yet | S (extract to shared static helper) | Low: identical logic, divergence risk | Sprint 7 | **ESCALATED** — 3-sprint threshold reached. Small fix, include in Sprint 7. |
+| TD-004 | ExtractInlineText duplicated across TableBuilder, ListBuilder, DocxAstVisitor | Copy-paste duplication | Sprint 3 | Each builder needed inline text extraction; no shared utility existed yet | S (extract to shared static helper) | Low: identical logic, divergence risk | Sprint 7 | **RESOLVED** — #76 InlineTextExtractor shared helper |
 | TD-005 | Md2.Emit.Docx references Md2.Parsing for AdmonitionBlock type | Architecture coupling | Sprint 4 | Need AdmonitionBlock type in emitter; no shared abstractions project exists | S (shared abstractions project) | Medium: coupling grows if more custom types added | Post-v1 | Open -- accepted |
 | TD-006 | BrowserManager.GetBrowserAsync null-check not synchronized | Concurrency bug | Sprint 5 | Single-threaded CLI doesn't expose the race; fixing adds complexity for no current benefit | S (add SemaphoreSlim or Lazy<Task<T>>) | Low: CLI is single-threaded | Post-v1 | Open -- accepted |
 
@@ -42,6 +42,7 @@ These are known shortcuts planned in the implementation. They are not yet incurr
 |----|-------------|----------|----------|-----------------|
 | TD-001 | Hardcoded default ResolvedTheme | Sprint 2 | Sprint 6 | #36: ThemeCascadeResolver with 4-layer cascade replaces CreateDefault() |
 | TD-003 | No logging framework configured | Sprint 2 | Sprint 5 | #71: Microsoft.Extensions.Logging wired with --debug flag, 27 log calls across 5 files |
+| TD-004 | ExtractInlineText duplication | Sprint 3 | Sprint 7 | #76: InlineTextExtractor shared helper replaces 3 copies |
 
 ## Debt Categories
 
@@ -52,7 +53,7 @@ Tag each debt item to track patterns:
 | Missing tests | 0 | -- |
 | Hardcoded values | 0 | Resolved (TD-001) |
 | Missing error handling | 0 | -- |
-| Copy-paste duplication | 1 | New |
+| Copy-paste duplication | 0 | Resolved (TD-004) |
 | Outdated dependencies | 0 | -- |
 | Missing docs | 0 | -- |
 | Performance | 0 | -- |
