@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Root CLI command: markdown to docx conversion", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ILogger], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Root CLI command: markdown to docx conversion with theme cascade", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ThemeCascadeResolver, ILogger], state: active, last: "sato@2026-03-12" }
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -11,6 +11,7 @@ using Md2.Diagrams;
 using Md2.Highlight;
 using Md2.Math;
 using Md2.Parsing;
+using Md2.Themes;
 using Microsoft.Extensions.Logging;
 
 namespace Md2.Cli;
@@ -42,13 +43,37 @@ public static class ConvertCommand
             aliases: new[] { "--debug" },
             description: "Enable debug-level logging with full diagnostics");
 
+        var presetOption = new Option<string?>(
+            aliases: new[] { "--preset" },
+            description: "Theme preset name (default: 'default')");
+
+        var themeOption = new Option<FileInfo?>(
+            aliases: new[] { "--theme" },
+            description: "Path to a theme YAML file");
+
+        var templateOption = new Option<FileInfo?>(
+            aliases: new[] { "--template" },
+            description: "Path to a DOCX template file");
+
+        var styleOption = new Option<string[]>(
+            aliases: new[] { "--style" },
+            description: "Style overrides as key=value pairs (e.g. --style colors.primary=FF0000)")
+        {
+            AllowMultipleArgumentsPerToken = true,
+            Arity = ArgumentArity.ZeroOrMore,
+        };
+
         var rootCommand = new RootCommand("md2 - Convert Markdown to polished DOCX files")
         {
             inputArgument,
             outputOption,
             quietOption,
             verboseOption,
-            debugOption
+            debugOption,
+            presetOption,
+            themeOption,
+            templateOption,
+            styleOption
         };
 
         rootCommand.SetHandler(async (InvocationContext context) =>
@@ -58,8 +83,12 @@ public static class ConvertCommand
             var quiet = context.ParseResult.GetValueForOption(quietOption);
             var verbose = context.ParseResult.GetValueForOption(verboseOption);
             var debug = context.ParseResult.GetValueForOption(debugOption);
+            var preset = context.ParseResult.GetValueForOption(presetOption);
+            var themeFile = context.ParseResult.GetValueForOption(themeOption);
+            var templateFile = context.ParseResult.GetValueForOption(templateOption);
+            var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
 
-            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, context);
+            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, context);
         });
 
         return rootCommand;
@@ -71,6 +100,10 @@ public static class ConvertCommand
         bool quiet,
         bool verbose,
         bool debug,
+        string? preset,
+        FileInfo? themeFile,
+        FileInfo? templateFile,
+        string[] styles,
         InvocationContext context)
     {
         // Validate input file exists
@@ -131,8 +164,47 @@ public static class ConvertCommand
             var transformOptions = new TransformOptions { RenderMermaid = true };
             var transformed = pipeline.Transform(doc, transformOptions);
 
+            // Resolve theme via 4-layer cascade
+            var cascadeInput = new ThemeCascadeInput
+            {
+                PresetName = preset ?? "default"
+            };
+
+            if (themeFile is not null)
+            {
+                if (!themeFile.Exists)
+                {
+                    await Console.Error.WriteLineAsync($"Error: Theme file not found: {themeFile.FullName}");
+                    return 2;
+                }
+                cascadeInput.Theme = ThemeParser.ParseFile(themeFile.FullName);
+            }
+
+            if (templateFile is not null)
+            {
+                if (!templateFile.Exists)
+                {
+                    await Console.Error.WriteLineAsync($"Error: Template file not found: {templateFile.FullName}");
+                    return 2;
+                }
+                var safety = TemplateSafetyChecker.Check(templateFile.FullName);
+                if (!safety.IsValid)
+                {
+                    foreach (var error in safety.Errors)
+                        await Console.Error.WriteLineAsync($"Error: {error}");
+                    return 2;
+                }
+            }
+
+            if (styles.Length > 0)
+            {
+                cascadeInput.CliOverrides = ThemeResolveCommand.ParseStyleOverrides(styles);
+            }
+
+            var theme = ThemeCascadeResolver.Resolve(cascadeInput);
+            logger.LogInformation("Theme resolved (preset: {Preset})", cascadeInput.PresetName);
+
             // Emit
-            var theme = ResolvedTheme.CreateDefault();
             var emitOptions = new EmitOptions();
             var emitter = new DocxEmitter();
 
