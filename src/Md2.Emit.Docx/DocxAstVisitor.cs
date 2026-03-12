@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Walks Markdig AST, dispatches to builders for paragraphs, tables, lists, images; provides InlineVisitorDelegate to TableBuilder", deps: [ParagraphBuilder, TableBuilder, ListBuilder, ImageBuilder, Markdig, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Walks Markdig AST, dispatches to builders for paragraphs, tables, lists, images, thematic breaks", deps: [ParagraphBuilder, TableBuilder, ListBuilder, ImageBuilder, Markdig, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -58,6 +58,7 @@ public class DocxAstVisitor
             ParagraphBlock paragraph => VisitParagraph(paragraph),
             MdTable table => VisitTable(table),
             ListBlock list => VisitList(list),
+            ThematicBreakBlock => VisitThematicBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
     }
@@ -72,6 +73,11 @@ public class DocxAstVisitor
     private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
     {
         return _listBuilder.Build(list);
+    }
+
+    private IEnumerable<OpenXmlElement> VisitThematicBreak()
+    {
+        return new[] { _paragraphBuilder.CreateThematicBreak() };
     }
 
     private IEnumerable<OpenXmlElement> VisitHeading(HeadingBlock heading)

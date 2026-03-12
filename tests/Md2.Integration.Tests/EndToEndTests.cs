@@ -29,6 +29,8 @@ Use `Console.WriteLine` for output.
 
 Visit [Example](https://example.com) for more.
 
+---
+
 ## Secondary Heading
 
 Another paragraph with normal body text.
@@ -198,6 +200,22 @@ Final paragraph.
 
         var linkText = string.Join("", hyperlinks.First().Descendants<Text>().Select(t => t.Text));
         linkText.ShouldBe("Example");
+    }
+
+    [Fact]
+    public async Task FullPipeline_HasThematicBreak()
+    {
+        var (wordDoc, stream) = await RunFullPipeline(RepresentativeMarkdown);
+        using var _ = wordDoc;
+        using var __ = stream;
+
+        var body = wordDoc.MainDocumentPart!.Document.Body!;
+        var paragraphs = body.Elements<Paragraph>().ToList();
+
+        // Should have a paragraph with bottom border (thematic break)
+        paragraphs.Any(p =>
+            p.ParagraphProperties?.ParagraphBorders?.BottomBorder != null
+        ).ShouldBeTrue("Expected a thematic break paragraph with bottom border");
     }
 
     [Fact]

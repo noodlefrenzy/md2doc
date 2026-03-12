@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Creates OpenXml Paragraph/Run elements from theme", deps: [ResolvedTheme, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Creates OpenXml Paragraph/Run elements from theme", deps: [ResolvedTheme, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -98,6 +98,25 @@ public class ParagraphBuilder
                 new Underline { Val = UnderlineValues.Single }
             ),
             new Text(text) { Space = SpaceProcessingModeValues.Preserve }
+        );
+    }
+
+    public Paragraph CreateThematicBreak()
+    {
+        return new Paragraph(
+            new ParagraphProperties(
+                new WidowControl(),
+                new ParagraphBorders(
+                    new BottomBorder
+                    {
+                        Val = BorderValues.Single,
+                        Size = 6,
+                        Space = 1,
+                        Color = _theme.BodyTextColor
+                    }
+                ),
+                new SpacingBetweenLines { Before = "240", After = "240" }
+            )
         );
     }
 
