@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Md2.Core\Md2.Core.csproj" />
     <ProjectReference Include="..\Md2.Emit.Docx\Md2.Emit.Docx.csproj" />
     <ProjectReference Include="..\Md2.Parsing\Md2.Parsing.csproj" />
+    <ProjectReference Include="..\Md2.Highlight\Md2.Highlight.csproj" />
   </ItemGroup>
 
   <ItemGroup>

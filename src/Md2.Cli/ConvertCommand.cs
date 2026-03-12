@@ -6,6 +6,7 @@ using Markdig;
 using Md2.Core.Pipeline;
 using Md2.Core.Transforms;
 using Md2.Emit.Docx;
+using Md2.Highlight;
 using Md2.Parsing;
 
 namespace Md2.Cli;
@@ -89,6 +90,7 @@ public static class ConvertCommand
             // Transform
             pipeline.RegisterTransform(new YamlFrontMatterExtractor());
             pipeline.RegisterTransform(new SmartTypographyTransform());
+            pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
             var transformOptions = new TransformOptions();
             var transformed = pipeline.Transform(doc, transformOptions);
 

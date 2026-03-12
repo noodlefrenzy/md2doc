@@ -1,7 +1,8 @@
-// agent-notes: { ctx: "Builds OpenXml Table for fenced code blocks with mono font, background shading", deps: [ParagraphBuilder, ResolvedTheme, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Builds OpenXml Table for fenced code blocks with mono font, background, syntax highlighting", deps: [ParagraphBuilder, ResolvedTheme, Md2.Core.Ast.SyntaxToken, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Md2.Core.Ast;
 using Md2.Core.Pipeline;
 
 namespace Md2.Emit.Docx;
@@ -17,11 +18,10 @@ public sealed class CodeBlockBuilder
 
     /// <summary>
     /// Builds a code block as a single-cell table with mono font and background shading.
+    /// If syntax tokens are provided, renders with syntax highlighting colors.
     /// </summary>
-    /// <param name="code">The code text content.</param>
-    /// <param name="language">Optional language identifier (for future syntax highlighting).</param>
-    /// <param name="theme">The resolved theme for styling.</param>
-    public Table Build(string code, string? language, ResolvedTheme theme)
+    public Table Build(string code, string? language, ResolvedTheme theme,
+        IReadOnlyList<SyntaxToken>? syntaxTokens = null)
     {
         var codeFontSize = Math.Max(theme.BaseFontSize - 1, 8);
         var halfPoints = ((int)(codeFontSize * 2)).ToString();
@@ -60,7 +60,55 @@ public sealed class CodeBlockBuilder
         );
         cell.Append(cellProps);
 
-        // Split code into lines, one paragraph per line
+        if (syntaxTokens != null && syntaxTokens.Count > 0)
+        {
+            BuildHighlightedContent(cell, syntaxTokens, halfPoints, theme);
+        }
+        else
+        {
+            BuildPlainContent(cell, code, halfPoints, theme);
+        }
+
+        row.Append(cell);
+        table.Append(row);
+
+        return table;
+    }
+
+    private void BuildHighlightedContent(TableCell cell, IReadOnlyList<SyntaxToken> tokens,
+        string halfPoints, ResolvedTheme theme)
+    {
+        var paragraph = CreateCodeParagraphShell();
+
+        foreach (var token in tokens)
+        {
+            if (token.Text == "\n")
+            {
+                // End current paragraph, start new one
+                if (!paragraph.HasChildren || paragraph.Elements<Run>().Any() == false)
+                {
+                    // Empty line — add empty run to prevent collapse
+                    paragraph.Append(CreateCodeRun("", halfPoints, theme.BodyTextColor, SyntaxFontStyle.Normal, theme));
+                }
+                cell.Append(paragraph);
+                paragraph = CreateCodeParagraphShell();
+                continue;
+            }
+
+            var color = token.ForegroundColor ?? theme.BodyTextColor;
+            paragraph.Append(CreateCodeRun(token.Text, halfPoints, color, token.FontStyle, theme));
+        }
+
+        // Append last paragraph
+        if (!paragraph.HasChildren || paragraph.Elements<Run>().Any() == false)
+        {
+            paragraph.Append(CreateCodeRun("", halfPoints, theme.BodyTextColor, SyntaxFontStyle.Normal, theme));
+        }
+        cell.Append(paragraph);
+    }
+
+    private void BuildPlainContent(TableCell cell, string code, string halfPoints, ResolvedTheme theme)
+    {
         var lines = code.Split('\n');
 
         // Remove trailing empty line (common in fenced code blocks)
@@ -71,7 +119,6 @@ public sealed class CodeBlockBuilder
 
         if (lines.Length == 0)
         {
-            // Ensure cell has at least one paragraph (OpenXml requirement)
             cell.Append(CreateCodeParagraph("", halfPoints, theme));
         }
         else
@@ -81,38 +128,48 @@ public sealed class CodeBlockBuilder
                 cell.Append(CreateCodeParagraph(line, halfPoints, theme));
             }
         }
-
-        row.Append(cell);
-        table.Append(row);
-
-        return table;
     }
 
-    private Paragraph CreateCodeParagraph(string text, string halfPoints, ResolvedTheme theme)
+    private static Paragraph CreateCodeParagraphShell()
     {
-        var paragraph = new Paragraph(
+        return new Paragraph(
             new ParagraphProperties(
                 new SpacingBetweenLines { After = "0", Line = "240", LineRule = LineSpacingRuleValues.Auto }
             )
         );
+    }
 
-        var run = new Run(
-            new RunProperties(
-                new RunFonts
-                {
-                    Ascii = theme.MonoFont,
-                    HighAnsi = theme.MonoFont,
-                    ComplexScript = theme.MonoFontFallback,
-                    EastAsia = theme.MonoFontFallback
-                },
-                new FontSize { Val = halfPoints },
-                new FontSizeComplexScript { Val = halfPoints },
-                new Color { Val = theme.BodyTextColor }
-            ),
-            new Text(text) { Space = SpaceProcessingModeValues.Preserve }
+    private Paragraph CreateCodeParagraph(string text, string halfPoints, ResolvedTheme theme)
+    {
+        var paragraph = CreateCodeParagraphShell();
+        paragraph.Append(CreateCodeRun(text, halfPoints, theme.BodyTextColor, SyntaxFontStyle.Normal, theme));
+        return paragraph;
+    }
+
+    private Run CreateCodeRun(string text, string halfPoints, string color,
+        SyntaxFontStyle fontStyle, ResolvedTheme theme)
+    {
+        var runProps = new RunProperties(
+            new RunFonts
+            {
+                Ascii = theme.MonoFont,
+                HighAnsi = theme.MonoFont,
+                ComplexScript = theme.MonoFontFallback,
+                EastAsia = theme.MonoFontFallback
+            },
+            new FontSize { Val = halfPoints },
+            new FontSizeComplexScript { Val = halfPoints },
+            new Color { Val = color }
         );
 
-        paragraph.Append(run);
-        return paragraph;
+        if (fontStyle.HasFlag(SyntaxFontStyle.Bold))
+            runProps.Append(new Bold());
+        if (fontStyle.HasFlag(SyntaxFontStyle.Italic))
+            runProps.Append(new Italic());
+
+        return new Run(
+            runProps,
+            new Text(text) { Space = SpaceProcessingModeValues.Preserve }
+        );
     }
 }

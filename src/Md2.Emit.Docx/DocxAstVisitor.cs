@@ -6,6 +6,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using Markdig.Extensions.EmphasisExtras;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using Md2.Core.Ast;
 using Md2.Core.Pipeline;
 
 using MdTable = Markdig.Extensions.Tables.Table;
@@ -82,7 +83,8 @@ public class DocxAstVisitor
     {
         var code = string.Join("\n", codeBlock.Lines);
         var language = codeBlock.Info;
-        var table = _codeBlockBuilder.Build(code, language, _theme);
+        var syntaxTokens = codeBlock.GetSyntaxTokens();
+        var table = _codeBlockBuilder.Build(code, language, _theme, syntaxTokens);
         return new OpenXmlElement[] { table };
     }
 
