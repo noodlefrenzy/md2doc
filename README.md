@@ -2,22 +2,27 @@
 
 # md2
 
-A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture with YAML theme DSL. Output quality noticeably superior to pandoc.
+A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture with AST transforms, syntax highlighting, Mermaid diagrams, and LaTeX math. Output quality noticeably superior to pandoc.
 
 ## Features
 
 - **Rich formatting** — headings, bold, italic, strikethrough, inline code, links, images
 - **Tables** — auto-sizing columns, header styling, alternating row shading, borders, inline formatting in cells
 - **Lists** — numbered, bulleted, nested, task lists with checkboxes
+- **Code blocks** — syntax highlighting for 20+ languages via TextMateSharp, mono font with background shading
+- **Mermaid diagrams** — rendered to high-resolution PNG via Playwright, content-hash caching
+- **Math equations** — LaTeX to native Word OMML via KaTeX, inline and display math
 - **Smart typography** — curly quotes, em/en dashes, ellipses (code spans excluded)
 - **Images** — embedded with aspect-ratio-preserving scaling, alt text, missing-file placeholders
-- **Theme engine** — YAML theme DSL with 4-layer cascade (CLI > YAML > preset > template)
+- **Blockquotes & admonitions** — colored borders, typed callouts (note/warning/tip/important/caution)
+- **Footnotes** — superscript references with bidirectional navigation
 - **Front matter** — YAML metadata (title, author, date) flows into document properties
 - **Page layout** — configurable margins, page size, page numbers in footer, widow/orphan control
 
 ## Prerequisites
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- Chromium (for Mermaid diagrams and math equations — installed automatically via Playwright on first use)
 
 ## Build
 
@@ -97,11 +102,15 @@ src/
   Md2.Parsing/      — Markdig configuration and extensions
   Md2.Emit.Docx/    — DOCX emitter (Open XML SDK)
   Md2.Highlight/    — Syntax highlighting (TextMateSharp)
+  Md2.Diagrams/     — Mermaid diagram rendering (Playwright)
+  Md2.Math/         — LaTeX math to OMML conversion
 tests/
   Md2.Core.Tests/
   Md2.Parsing.Tests/
   Md2.Emit.Docx.Tests/
   Md2.Highlight.Tests/
+  Md2.Diagrams.Tests/
+  Md2.Math.Tests/
   Md2.Integration.Tests/
 ```
 
