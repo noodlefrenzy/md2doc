@@ -1,13 +1,15 @@
-// agent-notes: { ctx: "Root CLI command: markdown to docx conversion", deps: [System.CommandLine, ConversionPipeline, DocxEmitter], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Root CLI command: markdown to docx conversion", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ILogger], state: active, last: "sato@2026-03-12" }
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using Markdig;
+using Md2.Core.Exceptions;
 using Md2.Core.Pipeline;
 using Md2.Core.Transforms;
 using Md2.Emit.Docx;
 using Md2.Highlight;
 using Md2.Parsing;
+using Microsoft.Extensions.Logging;
 
 namespace Md2.Cli;
 
@@ -34,12 +36,17 @@ public static class ConvertCommand
             aliases: new[] { "-v", "--verbose" },
             description: "Enable verbose output");
 
+        var debugOption = new Option<bool>(
+            aliases: new[] { "--debug" },
+            description: "Enable debug-level logging with full diagnostics");
+
         var rootCommand = new RootCommand("md2 - Convert Markdown to polished DOCX files")
         {
             inputArgument,
             outputOption,
             quietOption,
-            verboseOption
+            verboseOption,
+            debugOption
         };
 
         rootCommand.SetHandler(async (InvocationContext context) =>
@@ -48,8 +55,9 @@ public static class ConvertCommand
             var output = context.ParseResult.GetValueForOption(outputOption);
             var quiet = context.ParseResult.GetValueForOption(quietOption);
             var verbose = context.ParseResult.GetValueForOption(verboseOption);
+            var debug = context.ParseResult.GetValueForOption(debugOption);
 
-            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, context);
+            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, context);
         });
 
         return rootCommand;
@@ -60,6 +68,7 @@ public static class ConvertCommand
         FileInfo? output,
         bool quiet,
         bool verbose,
+        bool debug,
         InvocationContext context)
     {
         // Validate input file exists
@@ -73,17 +82,31 @@ public static class ConvertCommand
         var outputPath = output?.FullName
             ?? Path.ChangeExtension(input.FullName, ".docx");
 
+        // Configure logging based on flags
+        var logLevel = debug ? LogLevel.Debug : verbose ? LogLevel.Information : LogLevel.Warning;
+        using var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(logLevel);
+            if (verbose || debug)
+            {
+                builder.AddSimpleConsole(opts =>
+                {
+                    opts.SingleLine = true;
+                    opts.TimestampFormat = "HH:mm:ss ";
+                    opts.UseUtcTimestamp = false;
+                });
+            }
+        });
+        var logger = loggerFactory.CreateLogger<ConversionPipeline>();
+
         try
         {
-            if (verbose)
-            {
-                await Console.Error.WriteLineAsync($"Reading: {input.FullName}");
-            }
+            logger.LogInformation("Reading: {Path}", input.FullName);
 
             var markdown = await File.ReadAllTextAsync(input.FullName);
 
             // Parse
-            var pipeline = new ConversionPipeline();
+            var pipeline = new ConversionPipeline(logger);
             var parserOptions = new ParserOptions();
             var doc = pipeline.Parse(markdown, parserOptions);
 
@@ -102,10 +125,7 @@ public static class ConvertCommand
             using var fileStream = File.Create(outputPath);
             await pipeline.Emit(transformed, theme, emitter, emitOptions, fileStream);
 
-            if (verbose)
-            {
-                await Console.Error.WriteLineAsync($"Written: {outputPath}");
-            }
+            logger.LogInformation("Written: {Path}", outputPath);
 
             // Output path to stdout unless suppressed
             if (!quiet)
@@ -114,12 +134,27 @@ public static class ConvertCommand
             }
             return 0;
         }
+        catch (Md2Exception ex)
+        {
+            // User-facing error: show the user message
+            await Console.Error.WriteLineAsync($"Error: {ex.UserMessage}");
+            if (debug)
+            {
+                await Console.Error.WriteLineAsync(ex.ToString());
+            }
+            return 1;
+        }
         catch (Exception ex)
         {
-            await Console.Error.WriteLineAsync($"Error: {ex.Message}");
-            if (verbose)
+            // Internal error: unexpected failure
+            await Console.Error.WriteLineAsync($"Error: An unexpected error occurred. {ex.Message}");
+            if (debug)
             {
-                await Console.Error.WriteLineAsync(ex.StackTrace);
+                await Console.Error.WriteLineAsync(ex.ToString());
+            }
+            else
+            {
+                await Console.Error.WriteLineAsync("Run with --debug for full diagnostics.");
             }
             return 1;
         }

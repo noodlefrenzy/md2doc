@@ -164,9 +164,9 @@ public sealed class ImageBuilder
             // Default fallback
             return (EmuPerInch * 6, EmuPerInch * 4);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.Error.WriteLine($"Warning: Could not read image dimensions from '{imagePath}': {ex.Message}");
+            // Fall back to default dimensions if we can't read the image header
             return (EmuPerInch * 6, EmuPerInch * 4);
         }
     }

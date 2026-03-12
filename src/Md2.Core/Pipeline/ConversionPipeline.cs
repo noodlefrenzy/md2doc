@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Core pipeline: parse, transform, emit", deps: [Markdig, Md2.Parsing, IAstTransform, IFormatEmitter], state: "green", last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Core pipeline: parse, transform, emit", deps: [Markdig, Md2.Parsing, IAstTransform, IFormatEmitter, ILogger], state: active, last: "sato@2026-03-12" }
 
 using Markdig;
 using Markdig.Syntax;
@@ -6,20 +6,36 @@ using Md2.Core.Ast;
 using Md2.Core.Emit;
 using Md2.Core.Transforms;
 using Md2.Parsing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Md2.Core.Pipeline;
 
 public class ConversionPipeline
 {
     private readonly List<IAstTransform> _transforms = new();
+    private readonly ILogger<ConversionPipeline> _logger;
+
+    public ConversionPipeline()
+        : this(NullLogger<ConversionPipeline>.Instance)
+    {
+    }
+
+    public ConversionPipeline(ILogger<ConversionPipeline> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     public MarkdownDocument Parse(string markdown, ParserOptions options)
     {
         ArgumentNullException.ThrowIfNull(markdown);
         ArgumentNullException.ThrowIfNull(options);
 
+        _logger.LogInformation("Parse starting ({Length} chars)", markdown.Length);
         var pipeline = Md2MarkdownPipeline.Build(options);
-        return Markdown.Parse(markdown, pipeline);
+        var doc = Markdown.Parse(markdown, pipeline);
+        _logger.LogInformation("Parse complete");
+        return doc;
     }
 
     public void RegisterTransform(IAstTransform transform)
@@ -37,6 +53,7 @@ public class ConversionPipeline
 
         foreach (var transform in _transforms.OrderBy(t => t.Order))
         {
+            _logger.LogInformation("Applying transform: {TransformName} (order {Order})", transform.Name, transform.Order);
             doc = transform.Transform(doc, context);
         }
 
@@ -51,6 +68,8 @@ public class ConversionPipeline
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(output);
 
+        _logger.LogInformation("Emit starting (format: {Format})", emitter.FormatName);
         await emitter.EmitAsync(doc, theme, options, output);
+        _logger.LogInformation("Emit complete");
     }
 }
