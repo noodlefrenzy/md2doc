@@ -187,6 +187,18 @@ public static class ConvertCommand
                     return 2;
                 }
                 cascadeInput.Theme = ThemeParser.ParseFile(themeFile.FullName);
+
+                var issues = ThemeValidator.Validate(cascadeInput.Theme);
+                foreach (var issue in issues)
+                {
+                    var prefix = issue.Severity == ValidationSeverity.Error ? "Error" : "Warning";
+                    var path = issue.PropertyPath is not null ? $" [{issue.PropertyPath}]" : "";
+                    await Console.Error.WriteLineAsync($"{prefix}: Theme{path}: {issue.Message}");
+                }
+                if (issues.Any(i => i.Severity == ValidationSeverity.Error))
+                {
+                    return 2;
+                }
             }
 
             if (templateFile is not null)
@@ -208,6 +220,18 @@ public static class ConvertCommand
             if (styles.Length > 0)
             {
                 cascadeInput.CliOverrides = ThemeResolveCommand.ParseStyleOverrides(styles);
+
+                var cliIssues = ThemeValidator.Validate(cascadeInput.CliOverrides);
+                foreach (var issue in cliIssues)
+                {
+                    var prefix = issue.Severity == ValidationSeverity.Error ? "Error" : "Warning";
+                    var path = issue.PropertyPath is not null ? $" [--style {issue.PropertyPath}]" : "";
+                    await Console.Error.WriteLineAsync($"{prefix}: Style override{path}: {issue.Message}");
+                }
+                if (cliIssues.Any(i => i.Severity == ValidationSeverity.Error))
+                {
+                    return 2;
+                }
             }
 
             var (theme, cascadeTrace) = ThemeCascadeResolver.ResolveWithTrace(cascadeInput);
