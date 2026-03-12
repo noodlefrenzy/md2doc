@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Walks Markdig AST, dispatches to builders for paragraphs, tables, lists, images", deps: [ParagraphBuilder, TableBuilder, ListBuilder, ImageBuilder, Markdig, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Walks Markdig AST, dispatches to builders for paragraphs, tables, lists, images; provides InlineVisitorDelegate to TableBuilder", deps: [ParagraphBuilder, TableBuilder, ListBuilder, ImageBuilder, Markdig, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -24,7 +24,7 @@ public class DocxAstVisitor
     public DocxAstVisitor(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart, ResolvedTheme theme)
     {
         _paragraphBuilder = paragraphBuilder;
-        _tableBuilder = new TableBuilder(paragraphBuilder);
+        _tableBuilder = new TableBuilder(paragraphBuilder, VisitInline);
         _listBuilder = new ListBuilder(paragraphBuilder, mainDocumentPart);
         _imageBuilder = new ImageBuilder(paragraphBuilder);
         _mainDocumentPart = mainDocumentPart;

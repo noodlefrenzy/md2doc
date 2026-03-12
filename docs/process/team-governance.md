@@ -3,7 +3,7 @@ agent-notes:
   ctx: "team roster, triggers, debate protocol, voice rules"
   deps: [CLAUDE.md, docs/methodology/personas.md, docs/methodology/phases.md]
   state: active
-  last: "coordinator@2026-02-15"
+  last: "coordinator@2026-03-11"
 ---
 # Team Governance
 
@@ -41,7 +41,7 @@ Match the situation to the right perspective:
 | New idea / vague request | **Cam** | Elicit, probe, clarify. 5 Whys. "What does success look like?" |
 | Design decisions | **Dani** | Generate 2-3 sacrificial concepts before committing. |
 | Architecture / tech selection | **Archie** | ADR-driven trade-off analysis. Document the decision. |
-| Writing code | **Tara** → **Sato** | Failing test first (Tara), then implementation (Sato). |
+| Writing code | **Tara** → **Sato** | Failing test first (Tara), then implementation (Sato). Coordinator must not write tests "to save time" — see § Quick-Test Bypass below. |
 | Code review | **Vik** + **Tara** + **Pierrot** | Simplicity + perf, test coverage, security + compliance — three lenses. Plus migration safety (Archie) and API compat (Archie) when relevant. |
 | Reviewing work with the human | **Cam** (post-build) | Structured walkthrough. Translate vague reactions into actionable items. |
 | Any frontend/UI change | **Dani** (accessibility lens) | WCAG compliance, performance, responsive design. Non-negotiable for any component or CSS change. |
@@ -135,6 +135,22 @@ During sprint planning (Step 7 of `/sprint-boundary` or `/plan`), the coordinato
 - **Accepted risks:** [list]
 - **ADR changes:** [what was modified]
 ```
+
+## Quick-Test Bypass Anti-Pattern
+
+**The impulse to write a "quick test to prove a bug" is the signal to invoke Tara, not to bypass her.**
+
+The coordinator may be tempted to write tests directly — especially diagnostic or exploratory tests — because it's faster than spawning Tara. This is the exact scenario where test quality suffers: the coordinator writes tests that check element existence but miss text content assertions, skip edge cases (nested formatting, mixed plain+formatted), and omit invariant tests (column widths sum to page width). When those "quick" tests become the committed test suite, the coverage gaps become permanent.
+
+**Rule:** Even for exploratory tests written to understand a bug, the coordinator must hand them to Tara for review before they become committed tests. Tara adds:
+- Text content assertions (not just "a Bold run exists" but "the Bold run contains 'bold text'")
+- Edge cases the coordinator didn't consider (bold+italic nesting, mixed plain+formatted in one cell)
+- Structural invariants (column widths sum correctly, cell counts match)
+- Helper methods that make the test intent clearer (e.g., `GetDataCells`)
+
+**Detection signal:** The coordinator's response contains test code that was never reviewed by a Tara agent invocation.
+
+**Sprint 3 example:** Coordinator wrote 10 composition tests; Tara revised them and added 4 more, catching blind spots in every original test (missing text assertions, inconsistent table structures, no nested-formatting test, no width-sum invariant).
 
 ## Agent Voice and Personality
 

@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml Table with auto-sizing, borders, header repeat, alternating rows, cell padding", deps: [ParagraphBuilder, ResolvedTheme, Markdig.Extensions.Tables, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Builds OpenXml Table with auto-sizing, borders, header repeat, alternating rows, cell padding, inline formatting", deps: [ParagraphBuilder, ResolvedTheme, Markdig.Extensions.Tables, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-11" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -15,16 +15,30 @@ using TableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 
 namespace Md2.Emit.Docx;
 
+/// <summary>
+/// Delegate that converts a Markdig inline into OpenXml elements, preserving formatting.
+/// Parameters: inline node, bold, italic, strikethrough.
+/// </summary>
+public delegate IEnumerable<OpenXmlElement> InlineVisitorDelegate(
+    Markdig.Syntax.Inlines.Inline inline, bool bold, bool italic, bool strikethrough);
+
 public sealed class TableBuilder
 {
     private readonly ParagraphBuilder _paragraphBuilder;
+    private readonly InlineVisitorDelegate? _inlineVisitor;
 
     private const double MinColumnFraction = 0.05;
     private const double MaxColumnFraction = 0.60;
 
     public TableBuilder(ParagraphBuilder paragraphBuilder)
+        : this(paragraphBuilder, null)
+    {
+    }
+
+    public TableBuilder(ParagraphBuilder paragraphBuilder, InlineVisitorDelegate? inlineVisitor)
     {
         _paragraphBuilder = paragraphBuilder;
+        _inlineVisitor = inlineVisitor;
     }
 
     public Table Build(MdTable markdigTable, ResolvedTheme theme, int availableWidthTwips)
@@ -161,9 +175,11 @@ public sealed class TableBuilder
             {
                 foreach (var inline in paragraphBlock.Inline)
                 {
-                    var run = BuildRunFromInline(inline, isHeader, theme);
-                    if (run != null)
-                        paragraph.Append(run);
+                    var elements = BuildElementsFromInline(inline, isHeader, theme);
+                    foreach (var element in elements)
+                    {
+                        paragraph.Append(element);
+                    }
                 }
             }
         }
@@ -171,17 +187,74 @@ public sealed class TableBuilder
         return paragraph;
     }
 
-    private Run? BuildRunFromInline(Markdig.Syntax.Inlines.Inline inline, bool isHeader, ResolvedTheme theme)
+    private IEnumerable<OpenXmlElement> BuildElementsFromInline(
+        Markdig.Syntax.Inlines.Inline inline, bool isHeader, ResolvedTheme theme)
+    {
+        if (_inlineVisitor != null)
+        {
+            // Use the full inline visitor chain which preserves bold, italic,
+            // strikethrough, links, and inline code formatting.
+            // Note: bold=false here; header bold is applied uniformly by ApplyHeaderOverrides
+            // to avoid double-bolding when cells also contain **bold** markdown.
+            var elements = _inlineVisitor(inline, false, false, false)
+                .Where(e => e is not Paragraph) // Guard: images return Paragraphs which can't nest in cells
+                .ToList();
+
+            if (isHeader)
+            {
+                ApplyHeaderOverrides(elements, theme);
+            }
+
+            return elements;
+        }
+
+        // Fallback: plain-text extraction (for backward compatibility with tests
+        // that construct TableBuilder without an inline visitor).
+        return BuildRunFromInlineFallback(inline, isHeader, theme);
+    }
+
+    /// <summary>
+    /// Applies header styling overrides (bold + white color) to all runs in the element tree.
+    /// Hyperlink runs also get the white color override so they remain visible on the dark header background.
+    /// </summary>
+    private static void ApplyHeaderOverrides(IEnumerable<OpenXmlElement> elements, ResolvedTheme theme)
+    {
+        foreach (var element in elements)
+        {
+            foreach (var run in element is Run r ? new[] { r } : element.Descendants<Run>())
+            {
+                var runProps = run.RunProperties;
+                if (runProps == null)
+                {
+                    runProps = new RunProperties();
+                    run.PrependChild(runProps);
+                }
+
+                // Force bold on all header text
+                if (runProps.Bold == null)
+                    runProps.Append(new Bold());
+
+                // Force white color on all header text
+                var color = runProps.Color;
+                if (color != null)
+                    color.Val = theme.TableHeaderForeground;
+                else
+                    runProps.Append(new Color { Val = theme.TableHeaderForeground });
+            }
+        }
+    }
+
+    private IEnumerable<OpenXmlElement> BuildRunFromInlineFallback(
+        Markdig.Syntax.Inlines.Inline inline, bool isHeader, ResolvedTheme theme)
     {
         var text = ExtractInlineText(inline);
         if (string.IsNullOrEmpty(text))
-            return null;
+            return Enumerable.Empty<OpenXmlElement>();
 
         var run = _paragraphBuilder.CreateRun(text, bold: isHeader);
 
         if (isHeader)
         {
-            // Override color for header text
             var runProps = run.RunProperties;
             if (runProps != null)
             {
@@ -191,7 +264,7 @@ public sealed class TableBuilder
             }
         }
 
-        return run;
+        return new OpenXmlElement[] { run };
     }
 
     private static string ExtractInlineText(Markdig.Syntax.Inlines.Inline inline)

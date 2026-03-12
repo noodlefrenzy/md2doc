@@ -88,6 +88,7 @@ public static class ConvertCommand
 
             // Transform
             pipeline.RegisterTransform(new YamlFrontMatterExtractor());
+            pipeline.RegisterTransform(new SmartTypographyTransform());
             var transformOptions = new TransformOptions();
             var transformed = pipeline.Transform(doc, transformOptions);
 

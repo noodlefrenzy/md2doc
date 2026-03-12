@@ -3,7 +3,7 @@ agent-notes:
   ctx: "implementation gotchas and established patterns"
   deps: [CLAUDE.md]
   state: active
-  last: "coordinator@2026-03-01"
+  last: "coordinator@2026-03-11"
 ---
 # Known Patterns and Gotchas
 
@@ -11,14 +11,25 @@ Extracted from CLAUDE.md to reduce context window load. Read this when working o
 
 ## Testing Patterns (Tara)
 
-<!-- Tara: add project-specific testing gotchas here as you discover them.
-     Examples: mocking strategies that work/fail, flaky test patterns,
-     edge cases that keep recurring, test setup quirks. -->
+- **Composition matrix is mandatory for container × inline features.** Unit tests on individual builders (TableBuilder, ListBuilder, ParagraphBuilder) verify each in isolation but miss bugs where a container builder bypasses the shared inline visitor. When a builder handles a container type, tests must cover every inline type *inside* that container:
+
+  ```
+  Container × Inline = required test
+  ─────────────────────────────────
+  Table      × {bold, italic, strike, link, code, bold+italic, mixed}
+  List       × {bold, italic, strike, link, code}
+  Blockquote × {bold, italic, strike, link, code}
+  ```
+
+  **Detection signal:** A builder has its own `switch` or pattern match over inline types (like `ExtractInlineText`) instead of delegating to the shared visitor — that's a guaranteed composition coverage gap. See Sprint 3 retro: TableBuilder stripped all inline formatting because it reimplemented text extraction instead of using `DocxAstVisitor.VisitInline`.
+
+- **Synthetic test markdown is not enough.** The `RepresentativeMarkdown` constant in `EndToEndTests` is intentionally minimal. It tests individual features but not real-world combinations (links inside tables, strikethrough inside tables). The showcase sample (`test-sample.md`) exercises these combinations. Add a test that processes the actual showcase sample whenever rendering behavior changes.
+
+- **Assert text content, not just element existence.** A test that checks "a Bold run exists" can false-positive if some unrelated run happens to be bold (e.g., header cells are always bold). Always also assert the *text* inside the formatted run matches what you expect.
 
 ## Code Review Findings (Vik)
 
-<!-- Vik: add recurring code smells, complexity hotspots, and accepted
-     trade-offs here. Tracking these avoids redundant flagging across sessions. -->
+- **Builder reimplements visitor logic (Bypass-Visitor smell).** If a builder (Table, List, Image) has its own `switch`/pattern-match over Markdig inline types instead of delegating to the shared `DocxAstVisitor.VisitInline` chain, it will silently strip formatting for any inline type it doesn't handle. **Detection signal:** the builder imports `Markdig.Syntax.Inlines` and has a method like `ExtractInlineText` that returns `string` instead of `IEnumerable<OpenXmlElement>`. **Fix:** accept an `InlineVisitorDelegate` and delegate to it. See Sprint 3 fix where `TableBuilder` was refactored to use this pattern.
 
 ## Security & Compliance (Pierrot)
 
@@ -28,9 +39,11 @@ Extracted from CLAUDE.md to reduce context window load. Read this when working o
 
 ## Implementation Patterns (Sato)
 
-<!-- Sato: add codebase-specific implementation patterns, performance learnings,
-     and quirks here. Examples: which abstractions work well, fragile areas,
-     API client behaviors that differ from their types. -->
+- **Use `InlineVisitorDelegate` for any builder that handles cell/item content.** The pattern established in the TableBuilder fix: builders accept a delegate `(Inline, bool bold, bool italic, bool strikethrough) → IEnumerable<OpenXmlElement>` and call it instead of reimplementing inline traversal. This ensures all inline formatting (bold, italic, strike, link, code) is preserved. The delegate is wired by `DocxAstVisitor` when constructing builders. Keep the plain-text fallback path for unit tests that construct builders in isolation, but production always uses the delegate.
+
+- **Header overrides are post-hoc, not pre-hoc.** When a container needs to force styling (e.g., table headers force bold + white), apply it *after* the inline visitor produces elements, not by passing flags into the visitor. This avoids double-application (e.g., `isHeader` as `bold=true` plus `ApplyHeaderOverrides` also adding bold) and keeps the visitor's output clean.
+
+- **Guard against invalid nesting.** When a visitor delegate produces block-level elements (e.g., `VisitLink` returns a `Paragraph` for images), filter them out before appending inside another block. Nested `Paragraph` elements produce invalid Open XML. Use `.Where(e => e is not Paragraph)` or similar guards at the delegation boundary.
 
 ## Architecture Patterns (Archie)
 
@@ -55,6 +68,8 @@ Extracted from CLAUDE.md to reduce context window load. Read this when working o
 - **Wei must be invoked as a standalone agent.** The coordinator's own analysis of trade-offs is not a substitute for invoking Wei as a standalone agent during architecture debates. If an ADR claims "Wei debate resolved" but no Wei agent was spawned, the gate has not passed.
 
 - **"Invoke the team" means spawn subagents (Solo-Coordinator anti-pattern).** When the human uses language like "invoke the team", "use the team", "have Cam look at this", or names any persona, the coordinator MUST spawn those agents via the Task tool. The coordinator doing the work inline — even if the output is good — violates the explicit human request. **Detection signal:** the human asked for a named persona or "the team" but no Task tool calls with `subagent_type` matching a persona appear in the response. **Fix:** parse the request for persona names or team-level language, then spawn the appropriate agents before doing any work.
+
+- **Quick-Test Bypass anti-pattern.** The coordinator writes tests directly "to save time" instead of invoking Tara. The tests look reasonable but miss text content assertions, edge cases, and structural invariants. They become the committed suite and the gaps become permanent. **Detection signal:** test code appears in the coordinator's response with no Tara agent invocation. **Fix:** always invoke Tara for test authoring. Even for exploratory/diagnostic tests, hand them to Tara for review before committing. See `docs/process/team-governance.md` § Quick-Test Bypass for the full pattern.
 
 - **Use scripts for stable logic, commands for evolving knowledge.** Static scripts are ideal when the rules are well-defined and unlikely to change. But when automation requires understanding things that change externally — evolving formats, shifting best practices, new API conventions — prefer a Claude Code command over a script. Commands bring current understanding (and can web-search) on every run.
 
