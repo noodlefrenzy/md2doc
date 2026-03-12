@@ -9,6 +9,7 @@ using Markdig.Syntax.Inlines;
 using Md2.Core.Ast;
 using Md2.Core.Pipeline;
 
+using Markdig.Extensions.DefinitionLists;
 using Md2.Parsing;
 
 using MdTable = Markdig.Extensions.Tables.Table;
@@ -66,6 +67,7 @@ public class DocxAstVisitor
             FencedCodeBlock fencedCode => VisitFencedCodeBlock(fencedCode),
             QuoteBlock quote => VisitQuoteBlock(quote, 0),
             AdmonitionBlock admonition => VisitAdmonition(admonition),
+            DefinitionList defList => VisitDefinitionList(defList),
             ThematicBreakBlock => VisitThematicBreak(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
@@ -81,6 +83,48 @@ public class DocxAstVisitor
     private IEnumerable<OpenXmlElement> VisitList(ListBlock list)
     {
         return _listBuilder.Build(list);
+    }
+
+    private IEnumerable<OpenXmlElement> VisitDefinitionList(DefinitionList defList)
+    {
+        var elements = new List<OpenXmlElement>();
+
+        foreach (var block in defList)
+        {
+            if (block is DefinitionItem item)
+            {
+                foreach (var child in item)
+                {
+                    if (child is DefinitionTerm term)
+                    {
+                        // Term: bold, no indent
+                        var termText = ExtractPlainText(term);
+                        var para = _paragraphBuilder.CreateBodyParagraph();
+                        para.Append(_paragraphBuilder.CreateRun(termText, bold: true));
+                        var props = para.ParagraphProperties!;
+                        props.Append(new SpacingBetweenLines { After = "60" });
+                        elements.Add(para);
+                    }
+                    else if (child is ParagraphBlock paragraphBlock)
+                    {
+                        // Definition: indented
+                        var para = _paragraphBuilder.CreateBodyParagraph();
+                        var props = para.ParagraphProperties!;
+                        props.Append(new Indentation { Left = _theme.BlockquoteIndentTwips.ToString() });
+
+                        if (paragraphBlock.Inline != null)
+                        {
+                            var runs = VisitInlineContainer(paragraphBlock.Inline, false, false, false);
+                            foreach (var run in runs)
+                                para.Append(run);
+                        }
+                        elements.Add(para);
+                    }
+                }
+            }
+        }
+
+        return elements;
     }
 
     private IEnumerable<OpenXmlElement> VisitAdmonition(AdmonitionBlock admonition)
