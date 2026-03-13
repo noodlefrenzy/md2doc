@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Red-phase tests for DiagramCache content-hash PNG caching", deps: [Md2.Diagrams.DiagramCache, Shouldly], state: red, last: "tara@2026-03-12" }
+// agent-notes: { ctx: "Red-phase tests for DiagramCache content-hash PNG caching", deps: [Md2.Diagrams.DiagramCache, Md2.Diagrams.MermaidThemeConfig, Shouldly], state: red, last: "tara@2026-03-13" }
 
 using Shouldly;
 
@@ -80,6 +80,49 @@ public class DiagramCacheTests : IDisposable
         cache.Store(source, pngData);
 
         Directory.Exists(nestedDir).ShouldBeTrue();
+    }
+
+    // -----------------------------------------------------------------------
+    // Theme-aware cache key tests (issue #89)
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void GetCachePath_SameSourceDifferentThemeKeys_ReturnsDifferentPaths()
+    {
+        var source = "graph TD; A-->B;";
+        var themeKey1 = "pc=FF0000;sc=4A90D9;tc=333333;ff=Calibri;fs=14";
+        var themeKey2 = "pc=00FF00;sc=4A90D9;tc=333333;ff=Calibri;fs=14";
+
+        var path1 = _cache.GetCachePath(source, themeKey1);
+        var path2 = _cache.GetCachePath(source, themeKey2);
+
+        path1.ShouldNotBe(path2,
+            "Same diagram source with different theme keys must produce different cache paths");
+    }
+
+    [Fact]
+    public void GetCachePath_SameSourceSameThemeKey_ReturnsSamePath()
+    {
+        var source = "graph TD; A-->B;";
+        var themeKey = "pc=1B3A5C;sc=4A90D9;tc=333333;ff=Calibri;fs=14";
+
+        var path1 = _cache.GetCachePath(source, themeKey);
+        var path2 = _cache.GetCachePath(source, themeKey);
+
+        path1.ShouldBe(path2,
+            "Same diagram source with same theme key must produce the same cache path");
+    }
+
+    [Fact]
+    public void GetCachePath_WithNullThemeKey_ReturnsSameAsNoThemeOverload()
+    {
+        var source = "graph TD; A-->B;";
+
+        var pathNoTheme = _cache.GetCachePath(source);
+        var pathNullTheme = _cache.GetCachePath(source, themeKey: null);
+
+        pathNoTheme.ShouldBe(pathNullTheme,
+            "Null theme key should be backward-compatible with the no-theme overload");
     }
 
     [Fact]

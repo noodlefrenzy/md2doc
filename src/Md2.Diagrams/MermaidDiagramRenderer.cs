@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "AST transform that renders mermaid code blocks to PNG", deps: [IAstTransform, MermaidRenderer, Markdig, Md2.Core.Ast], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "AST transform that renders mermaid code blocks to PNG", deps: [IAstTransform, MermaidRenderer, MermaidThemeConfig, Markdig, Md2.Core.Ast], state: active, last: "sato@2026-03-13" }
 
 using Markdig.Syntax;
 using Md2.Core.Ast;
@@ -27,6 +27,10 @@ public class MermaidDiagramRenderer : IAstTransform
         if (!context.Options.RenderMermaid)
             return doc;
 
+        var themeConfig = context.ResolvedTheme != null
+            ? MermaidThemeConfig.FromResolvedTheme(context.ResolvedTheme)
+            : null;
+
         foreach (var block in doc.Descendants<FencedCodeBlock>())
         {
             if (!string.Equals(block.Info, "mermaid", StringComparison.OrdinalIgnoreCase))
@@ -38,7 +42,7 @@ public class MermaidDiagramRenderer : IAstTransform
 
             try
             {
-                var path = _renderer.RenderAsync(source, context.CancellationToken).GetAwaiter().GetResult();
+                var path = _renderer.RenderAsync(source, themeConfig, context.CancellationToken).GetAwaiter().GetResult();
                 block.SetMermaidImagePath(path);
             }
             catch (OperationCanceledException)

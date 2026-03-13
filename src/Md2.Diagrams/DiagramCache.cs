@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Content-hash PNG cache for rendered diagrams", deps: [], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Content-hash PNG cache for rendered diagrams", deps: [], state: active, last: "sato@2026-03-13" }
 
 using System.Security.Cryptography;
 using System.Text;
@@ -29,11 +29,26 @@ public sealed class DiagramCache
     }
 
     /// <summary>
+    /// Returns the cache file path for the given diagram source and theme key (deterministic, based on SHA256).
+    /// Different theme keys produce different cache paths for the same source.
+    /// </summary>
+    public string GetCachePath(string source, string? themeKey)
+    {
+        var hash = ComputeHash(themeKey != null ? source + "\0" + themeKey : source);
+        return Path.Combine(_cacheDir, hash + ".png");
+    }
+
+    /// <summary>
     /// Returns true and the path if a cached PNG exists for this source.
     /// </summary>
     public bool TryGetCached(string source, out string? path)
     {
-        path = GetCachePath(source);
+        return TryGetCached(source, null, out path);
+    }
+
+    public bool TryGetCached(string source, string? themeKey, out string? path)
+    {
+        path = GetCachePath(source, themeKey);
         if (File.Exists(path))
             return true;
 
@@ -47,8 +62,13 @@ public sealed class DiagramCache
     /// </summary>
     public string Store(string source, byte[] pngData)
     {
+        return Store(source, null, pngData);
+    }
+
+    public string Store(string source, string? themeKey, byte[] pngData)
+    {
         Directory.CreateDirectory(_cacheDir);
-        var path = GetCachePath(source);
+        var path = GetCachePath(source, themeKey);
         File.WriteAllBytes(path, pngData);
         return path;
     }

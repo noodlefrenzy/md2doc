@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Red-phase tests for MermaidRenderer PNG rendering with cache", deps: [Md2.Diagrams.MermaidRenderer, Md2.Diagrams.DiagramCache, Md2.Diagrams.BrowserManager, Md2.Core.Exceptions, Shouldly], state: red, last: "tara@2026-03-12" }
+// agent-notes: { ctx: "Red-phase tests for MermaidRenderer PNG rendering with cache and theme", deps: [Md2.Diagrams.MermaidRenderer, Md2.Diagrams.MermaidThemeConfig, Md2.Diagrams.DiagramCache, Md2.Diagrams.BrowserManager, Md2.Core.Exceptions, Shouldly], state: red, last: "sato@2026-03-13" }
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Md2.Core.Exceptions;
@@ -92,5 +92,92 @@ public class MermaidRendererTests : IAsyncDisposable
         var path2 = await _renderer.RenderAsync(source2);
 
         path1.ShouldNotBe(path2);
+    }
+
+    // -----------------------------------------------------------------------
+    // BuildHtml theme-aware tests (issue #89)
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void BuildHtml_WithThemeConfig_ContainsBaseTheme()
+    {
+        var themeConfig = new MermaidThemeConfig
+        {
+            PrimaryColor = "1B3A5C",
+            SecondaryColor = "4A90D9",
+            TextColor = "333333",
+            FontFamily = "Calibri, sans-serif",
+            FontSizePx = 14.67,
+        };
+        var source = "graph TD; A-->B;";
+
+        var html = MermaidRenderer.BuildHtml(source, themeConfig);
+
+        html.ShouldContain("theme: 'base'");
+        html.ShouldNotContain("theme: 'default'");
+    }
+
+    [Fact]
+    public void BuildHtml_WithThemeConfig_ContainsMappedThemeVariables()
+    {
+        var themeConfig = new MermaidThemeConfig
+        {
+            PrimaryColor = "FF0000",
+            SecondaryColor = "00FF00",
+            TextColor = "0000FF",
+            PrimaryTextColor = "FFFFFF",
+            FontFamily = "Georgia, sans-serif",
+            FontSizePx = 16.0,
+        };
+        var source = "graph TD; A-->B;";
+
+        var html = MermaidRenderer.BuildHtml(source, themeConfig);
+
+        html.ShouldContain("themeVariables");
+        html.ShouldContain("#FF0000");
+        html.ShouldContain("#00FF00");
+        html.ShouldContain("#0000FF");
+        html.ShouldContain("Georgia");
+    }
+
+    [Fact]
+    public void BuildHtml_WithNullThemeConfig_StillProducesValidHtml()
+    {
+        var source = "graph TD; A-->B;";
+
+        var html = MermaidRenderer.BuildHtml(source, themeConfig: null);
+
+        html.ShouldContain("mermaid.initialize");
+        html.ShouldContain("mermaid-output");
+        html.ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void BuildHtml_WithThemeConfig_ContainsPrimaryTextColor()
+    {
+        var themeConfig = new MermaidThemeConfig
+        {
+            PrimaryColor = "1B3A5C",
+            PrimaryTextColor = "FAFAFA",
+        };
+        var source = "graph TD; A-->B;";
+
+        var html = MermaidRenderer.BuildHtml(source, themeConfig);
+
+        html.ShouldContain("#FAFAFA");
+    }
+
+    [Fact]
+    public void BuildHtml_WithThemeConfig_ContainsFontSizeAsPx()
+    {
+        var themeConfig = new MermaidThemeConfig
+        {
+            FontSizePx = 16.0,
+        };
+        var source = "graph TD; A-->B;";
+
+        var html = MermaidRenderer.BuildHtml(source, themeConfig);
+
+        html.ShouldContain("16px");
     }
 }

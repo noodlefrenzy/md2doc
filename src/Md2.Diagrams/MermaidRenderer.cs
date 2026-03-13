@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Renders Mermaid diagrams to PNG via Playwright", deps: [BrowserManager, DiagramCache, Microsoft.Playwright, Md2.Core.Exceptions], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Renders Mermaid diagrams to PNG via Playwright", deps: [BrowserManager, DiagramCache, MermaidThemeConfig, Microsoft.Playwright, Md2.Core.Exceptions], state: active, last: "sato@2026-03-13" }
 
 using System.Net;
 using System.Reflection;
@@ -34,9 +34,15 @@ public sealed class MermaidRenderer
     /// </summary>
     public async Task<string> RenderAsync(string mermaidSource, CancellationToken cancellationToken = default)
     {
+        return await RenderAsync(mermaidSource, themeConfig: null, cancellationToken);
+    }
+
+    public async Task<string> RenderAsync(string mermaidSource, MermaidThemeConfig? themeConfig, CancellationToken cancellationToken = default)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(mermaidSource);
 
-        if (_cache.TryGetCached(mermaidSource, out var cachedPath))
+        var themeKey = themeConfig?.ToCacheKey();
+        if (_cache.TryGetCached(mermaidSource, themeKey, out var cachedPath))
         {
             _logger.LogDebug("Mermaid cache hit for diagram (hash: {Path})", Path.GetFileNameWithoutExtension(cachedPath));
             return cachedPath!;
@@ -55,7 +61,7 @@ public sealed class MermaidRenderer
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var html = BuildHtml(mermaidSource);
+            var html = BuildHtml(mermaidSource, themeConfig);
             await page.SetContentAsync(html, new PageSetContentOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle,
@@ -107,7 +113,7 @@ public sealed class MermaidRenderer
             {
                 Type = ScreenshotType.Png,
             });
-            var path = _cache.Store(mermaidSource, pngBytes);
+            var path = _cache.Store(mermaidSource, themeKey, pngBytes);
             _logger.LogInformation("Mermaid diagram rendered ({Bytes} bytes) -> {Path}", pngBytes.Length, Path.GetFileName(path));
             return path;
         }
@@ -132,9 +138,16 @@ public sealed class MermaidRenderer
         }
     }
 
-    private static string BuildHtml(string mermaidSource)
+    /// <summary>
+    /// Builds the HTML page for Mermaid rendering, optionally injecting theme variables.
+    /// Internal for testability (via InternalsVisibleTo).
+    /// </summary>
+    internal static string BuildHtml(string mermaidSource, MermaidThemeConfig? themeConfig)
     {
         var escapedSource = WebUtility.HtmlEncode(mermaidSource);
+        var initScript = themeConfig != null
+            ? BuildThemedInitScript(themeConfig)
+            : "mermaid.initialize({ startOnLoad: true, theme: 'default' });";
 
         return "<!DOCTYPE html>\n"
             + "<html><head><meta charset=\"utf-8\">\n"
@@ -144,8 +157,39 @@ public sealed class MermaidRenderer
             + escapedSource + "\n"
             + "</div>\n"
             + "<script>" + MermaidJs.Value + "</script>\n"
-            + "<script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>\n"
+            + "<script>" + initScript + "</script>\n"
             + "</body></html>";
+    }
+
+    private static string BuildThemedInitScript(MermaidThemeConfig config)
+    {
+        var fontSizePx = (int)Math.Round(config.FontSizePx);
+        // Escape font family for safe JS string interpolation (prevents injection via theme YAML)
+        var escapedFont = config.FontFamily.Replace("\\", "\\\\").Replace("'", "\\'");
+        return "mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { "
+            + $"primaryColor: '#{SanitizeHex(config.PrimaryColor)}', "
+            + $"secondaryColor: '#{SanitizeHex(config.SecondaryColor)}', "
+            + $"mainBkg: '#{SanitizeHex(config.PrimaryColor)}', "
+            + $"textColor: '#{SanitizeHex(config.TextColor)}', "
+            + $"lineColor: '#{SanitizeHex(config.TextColor)}', "
+            + $"primaryTextColor: '#{SanitizeHex(config.PrimaryTextColor)}', "
+            + $"tertiaryColor: '#{SanitizeHex(config.BackgroundColor)}', "
+            + $"noteBkgColor: '#{SanitizeHex(config.BackgroundColor)}', "
+            + $"noteBorderColor: '#{SanitizeHex(config.BorderColor)}', "
+            + $"nodeBorder: '#{SanitizeHex(config.BorderColor)}', "
+            + $"clusterBkg: '#{SanitizeHex(config.ClusterBackground)}', "
+            + $"fontFamily: '{escapedFont}', "
+            + $"fontSize: '{fontSizePx}px'"
+            + " } });";
+    }
+
+    /// <summary>
+    /// Strips non-hex characters from a color string to prevent JS injection.
+    /// </summary>
+    private static string SanitizeHex(string hex)
+    {
+        var sanitized = new string(hex.Where(c => "0123456789ABCDEFabcdef".Contains(c)).ToArray());
+        return sanitized.Length == 6 ? sanitized : "000000";
     }
 
     private static string LoadMermaidJs()

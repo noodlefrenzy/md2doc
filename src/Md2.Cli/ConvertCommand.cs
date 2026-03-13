@@ -178,39 +178,7 @@ public static class ConvertCommand
             parseSw.Stop();
             logger.LogInformation("Parse: {Elapsed}ms", parseSw.ElapsedMilliseconds);
 
-            // Set up browser-based rendering (Mermaid + Math)
-            await using var browserManager = new BrowserManager(
-                loggerFactory.CreateLogger<BrowserManager>());
-            var cacheDir = Path.Combine(Path.GetTempPath(), "md2-cache");
-            var diagramCache = new DiagramCache(cacheDir, MermaidRenderer.MermaidVersion);
-            var mermaidRenderer = new MermaidRenderer(browserManager, diagramCache,
-                loggerFactory.CreateLogger<MermaidRenderer>());
-            var latexConverter = new LatexToOmmlConverter(browserManager,
-                loggerFactory.CreateLogger<LatexToOmmlConverter>());
-
-            // Transform
-            var transformSw = Stopwatch.StartNew();
-            pipeline.RegisterTransform(new YamlFrontMatterExtractor());
-            pipeline.RegisterTransform(new SmartTypographyTransform());
-            pipeline.RegisterTransform(new MathBlockAnnotator(latexConverter));
-            pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
-            pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
-            var transformOptions = new TransformOptions { RenderMermaid = true };
-            var transformResult = pipeline.Transform(doc, transformOptions, cancellationToken);
-            var transformed = transformResult.Document;
-            transformSw.Stop();
-            logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
-
-            // Surface any warnings from transforms (e.g. failed Mermaid/Math rendering)
-            if (!quiet)
-            {
-                foreach (var warning in transformResult.Warnings)
-                {
-                    await Console.Error.WriteLineAsync($"Warning: {warning}");
-                }
-            }
-
-            // Resolve theme via 4-layer cascade
+            // Resolve theme via 4-layer cascade (before transforms so theme is available to Mermaid rendering)
             var cascadeSw = Stopwatch.StartNew();
             var cascadeInput = new ThemeCascadeInput
             {
@@ -293,6 +261,38 @@ public static class ConvertCommand
                 await Console.Error.WriteLineAsync("Cascade resolution:");
                 await Console.Error.WriteAsync(ThemeResolveFormatter.Format(theme, cascadeTrace));
                 await Console.Error.WriteLineAsync();
+            }
+
+            // Set up browser-based rendering (Mermaid + Math)
+            await using var browserManager = new BrowserManager(
+                loggerFactory.CreateLogger<BrowserManager>());
+            var cacheDir = Path.Combine(Path.GetTempPath(), "md2-cache");
+            var diagramCache = new DiagramCache(cacheDir, MermaidRenderer.MermaidVersion);
+            var mermaidRenderer = new MermaidRenderer(browserManager, diagramCache,
+                loggerFactory.CreateLogger<MermaidRenderer>());
+            var latexConverter = new LatexToOmmlConverter(browserManager,
+                loggerFactory.CreateLogger<LatexToOmmlConverter>());
+
+            // Transform (with resolved theme available to Mermaid renderer)
+            var transformSw = Stopwatch.StartNew();
+            pipeline.RegisterTransform(new YamlFrontMatterExtractor());
+            pipeline.RegisterTransform(new SmartTypographyTransform());
+            pipeline.RegisterTransform(new MathBlockAnnotator(latexConverter));
+            pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
+            pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
+            var transformOptions = new TransformOptions { RenderMermaid = true };
+            var transformResult = pipeline.Transform(doc, transformOptions, cancellationToken, resolvedTheme: theme);
+            var transformed = transformResult.Document;
+            transformSw.Stop();
+            logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
+
+            // Surface any warnings from transforms (e.g. failed Mermaid/Math rendering)
+            if (!quiet)
+            {
+                foreach (var warning in transformResult.Warnings)
+                {
+                    await Console.Error.WriteLineAsync($"Warning: {warning}");
+                }
             }
 
             // Emit
