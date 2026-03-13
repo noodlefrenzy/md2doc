@@ -3,7 +3,7 @@ agent-notes:
   ctx: "technical debt register, persists across sprints"
   deps: [docs/plans/v1-implementation-plan.md]
   state: active
-  last: "grace@2026-03-12"
+  last: "grace@2026-03-13"
   key: ["Grace tracks, Pat prioritizes against features", "3+ sprint debt auto-escalated to P0"]
 ---
 # Technical Debt Register
@@ -13,7 +13,7 @@ agent-notes:
 <!-- Debt open for 3+ sprints is automatically escalated by Grace (override authority per persona definition). -->
 
 **Project:** md2
-**Last reviewed:** 2026-03-12 (Sprint 7 boundary)
+**Last reviewed:** 2026-03-13 (Sprint 8 boundary)
 
 ## Active Debt
 

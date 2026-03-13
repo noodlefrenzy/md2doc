@@ -1,5 +1,5 @@
 ---
-agent-notes: { ctx: "human product philosophy for Pat proxy mode", deps: [CLAUDE.md], state: active, last: "pat@2026-03-11" }
+agent-notes: { ctx: "human product philosophy for Pat proxy mode", deps: [CLAUDE.md], state: active, last: "pat@2026-03-13" }
 ---
 
 # Product Context — md2doc
@@ -42,3 +42,9 @@ Escalate to the human (do not proxy) when:
 - A dependency choice would make the tool non-portable or non-local
 - A UX decision would change the daily workflow (e.g., making preview mandatory)
 - A quality trade-off is proposed that would bring output closer to pandoc-level
+
+## Correction Log
+
+| Date | What Changed | Why | Source |
+|------|-------------|-----|--------|
+| 2026-03-13 | Preview (#51, #52) restored to Sprint 9 as P1 core scope | Was incorrectly deferred "post-v1" in Sprint 8 plan. Human confirmed preview is a core feature needed for visual testing, discussed multiple times. Demotion rationale ("power-user feature") contradicted discovery notes and non-negotiable #2. | Sprint 8 retro, human feedback |
