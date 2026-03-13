@@ -1,5 +1,6 @@
-// agent-notes: { ctx: "TDD tests for ThemeParser YAML deserialization", deps: [src/Md2.Themes/ThemeParser.cs, src/Md2.Themes/ThemeDefinition.cs], state: active, last: "tara@2026-03-12" }
+// agent-notes: { ctx: "TDD tests for ThemeParser YAML deserialization", deps: [src/Md2.Themes/ThemeParser.cs, src/Md2.Themes/ThemeDefinition.cs, src/Md2.Themes/ThemeParseException.cs], state: active, last: "tara@2026-03-13" }
 
+using Md2.Core.Exceptions;
 using Shouldly;
 using Md2.Themes;
 
@@ -249,5 +250,34 @@ public class ThemeParserTests
         var theme = ThemeParser.Parse(yaml);
         theme.Meta!.Name.ShouldBe("no-version");
         theme.Meta.Version.ShouldBeNull();
+    }
+
+    // ── #81: ThemeParseException should extend Md2Exception ──────────
+
+    [Fact]
+    public void ThemeParseException_IsMd2Exception()
+    {
+        var ex = new ThemeParseException("bad yaml");
+
+        ex.ShouldBeAssignableTo<Md2Exception>();
+    }
+
+    [Fact]
+    public void ThemeParseException_UserMessage_ContainsMessage()
+    {
+        var ex = new ThemeParseException("Invalid YAML at line 5");
+
+        ex.UserMessage.ShouldBe("Invalid YAML at line 5");
+    }
+
+    [Fact]
+    public void ThemeParseException_WithInnerException_IsMd2Exception()
+    {
+        var inner = new InvalidOperationException("inner");
+        var ex = new ThemeParseException("bad yaml", inner);
+
+        ex.ShouldBeAssignableTo<Md2Exception>();
+        ex.InnerException.ShouldBe(inner);
+        ex.UserMessage.ShouldBe("bad yaml");
     }
 }
