@@ -13,7 +13,7 @@ agent-notes:
 <!-- Debt open for 3+ sprints is automatically escalated by Grace (override authority per persona definition). -->
 
 **Project:** md2
-**Last reviewed:** 2026-03-13 (Sprint 8 boundary)
+**Last reviewed:** 2026-03-13 (Sprint 9 boundary)
 
 ## Active Debt
 
