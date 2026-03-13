@@ -1,7 +1,6 @@
 // agent-notes: { ctx: "md2 doctor — diagnostic command for environment checks", deps: [System.CommandLine, BrowserManager, CodeTokenizer], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Runtime.InteropServices;
 using Md2.Diagrams;
 using Md2.Highlight;
@@ -14,9 +13,9 @@ public static class DoctorCommand
     {
         var command = new Command("doctor", "Check md2 environment and dependencies");
 
-        command.SetHandler((InvocationContext context) =>
+        command.SetAction((ParseResult parseResult) =>
         {
-            context.ExitCode = RunChecks(Console.Out, Console.Error);
+            return RunChecks(Console.Out, Console.Error);
         });
 
         return command;

@@ -11,7 +11,7 @@ public class PreviewCommandTests
     public async Task Preview_MissingFile_ReturnsExitCode2()
     {
         var command = Md2.Cli.PreviewCommand.Create();
-        var result = await command.InvokeAsync("nonexistent.md");
+        var result = await command.Parse("nonexistent.md").InvokeAsync();
 
         result.ShouldBe(2);
     }
@@ -24,7 +24,7 @@ public class PreviewCommandTests
         try
         {
             var command = Md2.Cli.PreviewCommand.Create();
-            var result = await command.InvokeAsync($"{tempFile} --theme nonexistent.yaml");
+            var result = await command.Parse($"{tempFile} --theme nonexistent.yaml").InvokeAsync();
 
             result.ShouldBe(2);
         }
@@ -51,7 +51,7 @@ public class PreviewCommandTests
         try
         {
             var command = Md2.Cli.PreviewCommand.Create();
-            var result = await command.InvokeAsync($"{tempFile} --preset nonexistent");
+            var result = await command.Parse($"{tempFile} --preset nonexistent").InvokeAsync();
 
             result.ShouldBe(2);
         }

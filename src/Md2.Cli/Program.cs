@@ -7,12 +7,13 @@ var rootCommand = ConvertCommand.Create();
 
 // Theme subcommands
 var themeCommand = new Command("theme", "Theme management commands");
-themeCommand.AddCommand(ThemeResolveCommand.Create());
-themeCommand.AddCommand(ThemeExtractCommand.Create());
-themeCommand.AddCommand(ThemeValidateCommand.Create());
-themeCommand.AddCommand(ThemeListCommand.Create());
-rootCommand.AddCommand(themeCommand);
-rootCommand.AddCommand(DoctorCommand.Create());
-rootCommand.AddCommand(PreviewCommand.Create());
+themeCommand.Add(ThemeResolveCommand.Create());
+themeCommand.Add(ThemeExtractCommand.Create());
+themeCommand.Add(ThemeValidateCommand.Create());
+themeCommand.Add(ThemeListCommand.Create());
+rootCommand.Add(themeCommand);
+rootCommand.Add(DoctorCommand.Create());
+rootCommand.Add(PreviewCommand.Create());
 
-return await rootCommand.InvokeAsync(args);
+var parseResult = rootCommand.Parse(args);
+return await parseResult.InvokeAsync();

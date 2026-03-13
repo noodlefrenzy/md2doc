@@ -1,7 +1,6 @@
-// agent-notes: { ctx: "md2 theme resolve — displays cascade resolution table", deps: [ThemeCascadeResolver.cs, ThemeResolveFormatter.cs, ThemeParser.cs, PresetRegistry.cs], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "md2 theme resolve — displays cascade resolution table", deps: [ThemeCascadeResolver.cs, ThemeResolveFormatter.cs, ThemeParser.cs, PresetRegistry.cs], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Globalization;
 using Md2.Themes;
 
@@ -11,22 +10,24 @@ public static class ThemeResolveCommand
 {
     public static Command Create()
     {
-        var presetOption = new Option<string?>(
-            aliases: ["--preset"],
-            description: "Preset name (default: 'default')");
-
-        var themeOption = new Option<FileInfo?>(
-            aliases: ["--theme"],
-            description: "Path to a theme YAML file");
-
-        var templateOption = new Option<FileInfo?>(
-            aliases: ["--template"],
-            description: "Path to a DOCX template file");
-
-        var styleOption = new Option<string[]>(
-            aliases: ["--style"],
-            description: "Style overrides as key=value pairs (e.g. --style colors.primary=#FF0000)")
+        var presetOption = new Option<string?>("--preset")
         {
+            Description = "Preset name (default: 'default')"
+        };
+
+        var themeOption = new Option<FileInfo?>("--theme")
+        {
+            Description = "Path to a theme YAML file"
+        };
+
+        var templateOption = new Option<FileInfo?>("--template")
+        {
+            Description = "Path to a DOCX template file"
+        };
+
+        var styleOption = new Option<string[]>("--style")
+        {
+            Description = "Style overrides as key=value pairs (e.g. --style colors.primary=#FF0000)",
             AllowMultipleArgumentsPerToken = true,
             Arity = ArgumentArity.ZeroOrMore,
         };
@@ -39,14 +40,14 @@ public static class ThemeResolveCommand
             styleOption
         };
 
-        command.SetHandler((InvocationContext context) =>
+        command.SetAction((ParseResult parseResult) =>
         {
-            var preset = context.ParseResult.GetValueForOption(presetOption);
-            var themeFile = context.ParseResult.GetValueForOption(themeOption);
-            var templateFile = context.ParseResult.GetValueForOption(templateOption);
-            var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
+            var preset = parseResult.GetValue(presetOption);
+            var themeFile = parseResult.GetValue(themeOption);
+            var templateFile = parseResult.GetValue(templateOption);
+            var styles = parseResult.GetValue(styleOption) ?? [];
 
-            context.ExitCode = Execute(preset, themeFile, templateFile, styles);
+            return Execute(preset, themeFile, templateFile, styles);
         });
 
         return command;

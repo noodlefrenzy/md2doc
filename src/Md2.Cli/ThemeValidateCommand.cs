@@ -1,7 +1,6 @@
-// agent-notes: { ctx: "md2 theme validate — validates theme YAML file", deps: [ThemeParser.cs, ThemeValidator.cs], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "md2 theme validate — validates theme YAML file", deps: [ThemeParser.cs, ThemeValidator.cs], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using Md2.Themes;
 
 namespace Md2.Cli;
@@ -10,19 +9,20 @@ public static class ThemeValidateCommand
 {
     public static Command Create()
     {
-        var themeArgument = new Argument<FileInfo>(
-            name: "theme",
-            description: "Path to the theme YAML file to validate");
+        var themeArgument = new Argument<FileInfo>("theme")
+        {
+            Description = "Path to the theme YAML file to validate"
+        };
 
         var command = new Command("validate", "Validate a theme YAML file for errors and warnings")
         {
             themeArgument
         };
 
-        command.SetHandler(async (InvocationContext context) =>
+        command.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
-            var themeFile = context.ParseResult.GetValueForArgument(themeArgument);
-            context.ExitCode = await ExecuteAsync(themeFile);
+            var themeFile = parseResult.GetValue(themeArgument);
+            return await ExecuteAsync(themeFile!);
         });
 
         return command;

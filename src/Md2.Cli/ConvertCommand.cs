@@ -1,9 +1,7 @@
 // agent-notes: { ctx: "Root CLI command: markdown to docx with cancellation support", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ThemeCascadeResolver, ILogger], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics;
-using Markdig;
 using Md2.Core.Exceptions;
 using Md2.Core.Pipeline;
 using Md2.Core.Transforms;
@@ -21,62 +19,69 @@ public static class ConvertCommand
 {
     public static RootCommand Create()
     {
-        var inputArgument = new Argument<FileInfo>(
-            name: "input",
-            description: "Path to the Markdown input file")
+        var inputArgument = new Argument<FileInfo>("input")
         {
+            Description = "Path to the Markdown input file",
             Arity = ArgumentArity.ExactlyOne
         };
 
-        var outputOption = new Option<FileInfo?>(
-            aliases: new[] { "-o", "--output" },
-            description: "Path to the output DOCX file. Derived from input name if omitted.");
-
-        var quietOption = new Option<bool>(
-            aliases: new[] { "-q", "--quiet" },
-            description: "Suppress warnings");
-
-        var verboseOption = new Option<bool>(
-            aliases: new[] { "-v", "--verbose" },
-            description: "Enable verbose output");
-
-        var debugOption = new Option<bool>(
-            aliases: new[] { "--debug" },
-            description: "Enable debug-level logging with full diagnostics");
-
-        var presetOption = new Option<string?>(
-            aliases: new[] { "--preset" },
-            description: "Theme preset name (default: 'default')");
-
-        var themeOption = new Option<FileInfo?>(
-            aliases: new[] { "--theme" },
-            description: "Path to a theme YAML file");
-
-        var templateOption = new Option<FileInfo?>(
-            aliases: new[] { "--template" },
-            description: "Path to a DOCX template file");
-
-        var styleOption = new Option<string[]>(
-            aliases: new[] { "--style" },
-            description: "Style overrides as key=value pairs (e.g. --style colors.primary=FF0000)")
+        var outputOption = new Option<FileInfo?>("-o", "--output")
         {
+            Description = "Path to the output DOCX file. Derived from input name if omitted."
+        };
+
+        var quietOption = new Option<bool>("-q", "--quiet")
+        {
+            Description = "Suppress warnings"
+        };
+
+        var verboseOption = new Option<bool>("-v", "--verbose")
+        {
+            Description = "Enable verbose output"
+        };
+
+        var debugOption = new Option<bool>("--debug")
+        {
+            Description = "Enable debug-level logging with full diagnostics"
+        };
+
+        var presetOption = new Option<string?>("--preset")
+        {
+            Description = "Theme preset name (default: 'default')"
+        };
+
+        var themeOption = new Option<FileInfo?>("--theme")
+        {
+            Description = "Path to a theme YAML file"
+        };
+
+        var templateOption = new Option<FileInfo?>("--template")
+        {
+            Description = "Path to a DOCX template file"
+        };
+
+        var styleOption = new Option<string[]>("--style")
+        {
+            Description = "Style overrides as key=value pairs (e.g. --style colors.primary=FF0000)",
             AllowMultipleArgumentsPerToken = true,
             Arity = ArgumentArity.ZeroOrMore,
         };
 
-        var tocOption = new Option<bool>(
-            aliases: new[] { "--toc" },
-            description: "Include a Table of Contents");
+        var tocOption = new Option<bool>("--toc")
+        {
+            Description = "Include a Table of Contents"
+        };
 
-        var tocDepthOption = new Option<int>(
-            aliases: new[] { "--toc-depth" },
-            description: "TOC heading depth (1-6, default 3)")
-        { IsRequired = false };
-        tocDepthOption.SetDefaultValue(3);
+        var tocDepthOption = new Option<int>("--toc-depth")
+        {
+            Description = "TOC heading depth (1-6, default 3)",
+            DefaultValueFactory = _ => 3,
+        };
 
-        var coverOption = new Option<bool>(
-            aliases: new[] { "--cover" },
-            description: "Include a cover page from front matter metadata");
+        var coverOption = new Option<bool>("--cover")
+        {
+            Description = "Include a cover page from front matter metadata"
+        };
 
         var rootCommand = new RootCommand("Convert Markdown to polished DOCX files")
         {
@@ -93,25 +98,23 @@ public static class ConvertCommand
             tocDepthOption,
             coverOption
         };
-        rootCommand.Name = "md2";
 
-        rootCommand.SetHandler(async (InvocationContext context) =>
+        rootCommand.SetAction(async (parseResult, ct) =>
         {
-            var input = context.ParseResult.GetValueForArgument(inputArgument);
-            var output = context.ParseResult.GetValueForOption(outputOption);
-            var quiet = context.ParseResult.GetValueForOption(quietOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
-            var debug = context.ParseResult.GetValueForOption(debugOption);
-            var preset = context.ParseResult.GetValueForOption(presetOption);
-            var themeFile = context.ParseResult.GetValueForOption(themeOption);
-            var templateFile = context.ParseResult.GetValueForOption(templateOption);
-            var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
-            var toc = context.ParseResult.GetValueForOption(tocOption);
-            var tocDepth = context.ParseResult.GetValueForOption(tocDepthOption);
-            var cover = context.ParseResult.GetValueForOption(coverOption);
+            var input = parseResult.GetValue(inputArgument);
+            var output = parseResult.GetValue(outputOption);
+            var quiet = parseResult.GetValue(quietOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var debug = parseResult.GetValue(debugOption);
+            var preset = parseResult.GetValue(presetOption);
+            var themeFile = parseResult.GetValue(themeOption);
+            var templateFile = parseResult.GetValue(templateOption);
+            var styles = parseResult.GetValue(styleOption) ?? [];
+            var toc = parseResult.GetValue(tocOption);
+            var tocDepth = parseResult.GetValue(tocDepthOption);
+            var cover = parseResult.GetValue(coverOption);
 
-            var cancellationToken = context.GetCancellationToken();
-            context.ExitCode = await ExecuteAsync(input, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, cover, cancellationToken, context);
+            return await ExecuteAsync(input!, output, quiet, verbose, debug, preset, themeFile, templateFile, styles, toc, tocDepth, cover, ct);
         });
 
         return rootCommand;
@@ -130,8 +133,7 @@ public static class ConvertCommand
         bool toc,
         int tocDepth,
         bool cover,
-        CancellationToken cancellationToken,
-        InvocationContext context)
+        CancellationToken cancellationToken)
     {
         // Validate input file exists
         if (!input.Exists)

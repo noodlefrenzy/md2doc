@@ -142,18 +142,23 @@ public class PresetRegistryTests
         page.MarginRight.ShouldNotBeNull();
     }
 
-    // ----- 5-preset completeness tests (#43) -----
+    // ----- preset completeness tests (#43) -----
 
     [Fact]
-    public void ListPresets_ReturnsAllFivePresets()
+    public void ListPresets_ReturnsAllPresets()
     {
         var names = PresetRegistry.ListPresets();
-        names.Count.ShouldBe(5);
+        names.Count.ShouldBe(10);
         names.ShouldContain("academic");
         names.ShouldContain("corporate");
         names.ShouldContain("default");
         names.ShouldContain("minimal");
         names.ShouldContain("technical");
+        names.ShouldContain("editorial");
+        names.ShouldContain("nightowl");
+        names.ShouldContain("hackterm");
+        names.ShouldContain("bubble");
+        names.ShouldContain("rosegarden");
     }
 
     [Theory]

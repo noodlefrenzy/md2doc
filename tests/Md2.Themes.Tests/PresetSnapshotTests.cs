@@ -31,6 +31,11 @@ public class PresetSnapshotTests
     [InlineData("corporate")]
     [InlineData("minimal")]
     [InlineData("technical")]
+    [InlineData("editorial")]
+    [InlineData("nightowl")]
+    [InlineData("hackterm")]
+    [InlineData("bubble")]
+    [InlineData("rosegarden")]
     public void Preset_MatchesApprovedSnapshot(string presetName)
     {
         var theme = ThemeCascadeResolver.Resolve(new ThemeCascadeInput { PresetName = presetName });
@@ -70,6 +75,11 @@ public class PresetSnapshotTests
     [InlineData("corporate")]
     [InlineData("minimal")]
     [InlineData("technical")]
+    [InlineData("editorial")]
+    [InlineData("nightowl")]
+    [InlineData("hackterm")]
+    [InlineData("bubble")]
+    [InlineData("rosegarden")]
     public void Preset_HasDistinctPrimaryColor(string presetName)
     {
         var theme = ThemeCascadeResolver.Resolve(new ThemeCascadeInput { PresetName = presetName });
@@ -83,6 +93,11 @@ public class PresetSnapshotTests
     [InlineData("corporate")]
     [InlineData("minimal")]
     [InlineData("technical")]
+    [InlineData("editorial")]
+    [InlineData("nightowl")]
+    [InlineData("hackterm")]
+    [InlineData("bubble")]
+    [InlineData("rosegarden")]
     public void Preset_HasValidFontSizes(string presetName)
     {
         var theme = ThemeCascadeResolver.Resolve(new ThemeCascadeInput { PresetName = presetName });

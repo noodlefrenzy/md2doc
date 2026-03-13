@@ -1,7 +1,6 @@
 // agent-notes: { ctx: "CLI subcommand: live preview with hot-reload", deps: [System.CommandLine, PreviewSession, ThemeCascadeResolver, Md2.Preview], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using Markdig;
 using Md2.Core.Exceptions;
 using Md2.Core.Pipeline;
@@ -15,32 +14,33 @@ public static class PreviewCommand
 {
     public static Command Create()
     {
-        var inputArgument = new Argument<FileInfo>(
-            name: "input",
-            description: "Path to the Markdown input file")
+        var inputArgument = new Argument<FileInfo>("input")
         {
+            Description = "Path to the Markdown input file",
             Arity = ArgumentArity.ExactlyOne
         };
 
-        var presetOption = new Option<string?>(
-            aliases: new[] { "--preset" },
-            description: "Theme preset name (default: 'default')");
-
-        var themeOption = new Option<FileInfo?>(
-            aliases: new[] { "--theme" },
-            description: "Path to a theme YAML file");
-
-        var styleOption = new Option<string[]>(
-            aliases: new[] { "--style" },
-            description: "Style overrides as key=value pairs (e.g. --style colors.primary=FF0000)")
+        var presetOption = new Option<string?>("--preset")
         {
+            Description = "Theme preset name (default: 'default')"
+        };
+
+        var themeOption = new Option<FileInfo?>("--theme")
+        {
+            Description = "Path to a theme YAML file"
+        };
+
+        var styleOption = new Option<string[]>("--style")
+        {
+            Description = "Style overrides as key=value pairs (e.g. --style colors.primary=FF0000)",
             AllowMultipleArgumentsPerToken = true,
             Arity = ArgumentArity.ZeroOrMore,
         };
 
-        var noBrowserOption = new Option<bool>(
-            aliases: new[] { "--no-browser" },
-            description: "Start the server without opening a browser (use with port forwarding)");
+        var noBrowserOption = new Option<bool>("--no-browser")
+        {
+            Description = "Start the server without opening a browser (use with port forwarding)"
+        };
 
         var command = new Command("preview", "Open a live HTML preview of a Markdown file")
         {
@@ -51,16 +51,15 @@ public static class PreviewCommand
             noBrowserOption
         };
 
-        command.SetHandler(async (InvocationContext context) =>
+        command.SetAction(async (parseResult, ct) =>
         {
-            var input = context.ParseResult.GetValueForArgument(inputArgument);
-            var preset = context.ParseResult.GetValueForOption(presetOption);
-            var themeFile = context.ParseResult.GetValueForOption(themeOption);
-            var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
-            var noBrowser = context.ParseResult.GetValueForOption(noBrowserOption);
-            var cancellationToken = context.GetCancellationToken();
+            var input = parseResult.GetValue(inputArgument);
+            var preset = parseResult.GetValue(presetOption);
+            var themeFile = parseResult.GetValue(themeOption);
+            var styles = parseResult.GetValue(styleOption) ?? [];
+            var noBrowser = parseResult.GetValue(noBrowserOption);
 
-            context.ExitCode = await ExecuteAsync(input, preset, themeFile, styles, noBrowser, cancellationToken);
+            return await ExecuteAsync(input!, preset, themeFile, styles, noBrowser, ct);
         });
 
         return command;

@@ -1,7 +1,6 @@
-// agent-notes: { ctx: "md2 theme extract — extracts DOCX template styles to YAML", deps: [DocxStyleExtractor.cs, ThemeDefinition.cs, YamlDotNet], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "md2 theme extract — extracts DOCX template styles to YAML", deps: [DocxStyleExtractor.cs, ThemeDefinition.cs, YamlDotNet], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using Md2.Themes;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -12,13 +11,15 @@ public static class ThemeExtractCommand
 {
     public static Command Create()
     {
-        var templateArgument = new Argument<FileInfo>(
-            name: "template",
-            description: "Path to the DOCX template file to extract styles from");
+        var templateArgument = new Argument<FileInfo>("template")
+        {
+            Description = "Path to the DOCX template file to extract styles from"
+        };
 
-        var outputOption = new Option<FileInfo?>(
-            aliases: ["-o", "--output"],
-            description: "Output YAML file path (default: stdout)");
+        var outputOption = new Option<FileInfo?>("-o", "--output")
+        {
+            Description = "Output YAML file path (default: stdout)"
+        };
 
         var command = new Command("extract", "Extract styles from a DOCX template into a theme YAML file")
         {
@@ -26,12 +27,12 @@ public static class ThemeExtractCommand
             outputOption
         };
 
-        command.SetHandler(async (InvocationContext context) =>
+        command.SetAction(async (ParseResult parseResult, CancellationToken ct) =>
         {
-            var template = context.ParseResult.GetValueForArgument(templateArgument);
-            var output = context.ParseResult.GetValueForOption(outputOption);
+            var template = parseResult.GetValue(templateArgument);
+            var output = parseResult.GetValue(outputOption);
 
-            context.ExitCode = await ExecuteAsync(template, output);
+            return await ExecuteAsync(template!, output);
         });
 
         return command;
