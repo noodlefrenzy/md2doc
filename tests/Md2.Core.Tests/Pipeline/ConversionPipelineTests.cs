@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Issue 5 pipeline skeleton tests, TDD red", deps: [Md2.Core.Pipeline, Md2.Core.Transforms, Md2.Core.Emit], state: "red", last: "tara@2026-03-11" }
+// agent-notes: { ctx: "Pipeline tests incl. TransformResult warnings", deps: [Md2.Core.Pipeline, Md2.Core.Transforms, Md2.Core.Emit], state: active, last: "tara@2026-03-13" }
 
 using Markdig.Syntax;
 using Md2.Core.Ast;
@@ -99,7 +99,7 @@ public class ConversionPipelineTests
 
         var result = pipeline.Transform(doc, options);
 
-        result.ShouldBe(doc);
+        result.Document.ShouldBe(doc);
     }
 
     [Fact]
@@ -220,8 +220,8 @@ public class ConversionPipelineTests
 
         // Act: full pipeline wiring
         var doc = pipeline.Parse(markdown, parserOptions);
-        var transformed = pipeline.Transform(doc, transformOptions);
-        await pipeline.Emit(transformed, theme, emitter, emitOptions, output);
+        var transformResult = pipeline.Transform(doc, transformOptions);
+        await pipeline.Emit(transformResult.Document, theme, emitter, emitOptions, output);
 
         // Assert
         emitter.WasCalled.ShouldBeTrue();
@@ -298,6 +298,46 @@ public class ConversionPipelineTests
         capturedToken.Value.ShouldBe(cts.Token);
     }
 
+    // ── #80: Transform returns warnings ───────────────────────────────
+
+    [Fact]
+    public void Transform_ReturnsWarningsFromContext()
+    {
+        var pipeline = new ConversionPipeline();
+        var doc = new MarkdownDocument();
+        pipeline.RegisterTransform(new WarningTransform("Mermaid rendering failed for block 1"));
+
+        var result = pipeline.Transform(doc, new TransformOptions());
+
+        result.Warnings.ShouldNotBeEmpty();
+        result.Warnings[0].ShouldBe("Mermaid rendering failed for block 1");
+    }
+
+    [Fact]
+    public void Transform_NoWarnings_ReturnsEmptyList()
+    {
+        var pipeline = new ConversionPipeline();
+        var doc = new MarkdownDocument();
+
+        var result = pipeline.Transform(doc, new TransformOptions());
+
+        result.Warnings.ShouldNotBeNull();
+        result.Warnings.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Transform_MultipleWarnings_AllReturned()
+    {
+        var pipeline = new ConversionPipeline();
+        var doc = new MarkdownDocument();
+        pipeline.RegisterTransform(new WarningTransform("warning 1"));
+        pipeline.RegisterTransform(new WarningTransform("warning 2", order: 20));
+
+        var result = pipeline.Transform(doc, new TransformOptions());
+
+        result.Warnings.Count.ShouldBe(2);
+    }
+
     // ── IFormatEmitter contract ────────────────────────────────────────
 
     [Fact]
@@ -347,6 +387,25 @@ public class ConversionPipelineTests
         public MarkdownDocument Transform(MarkdownDocument doc, TransformContext context)
         {
             _onTransform(context);
+            return doc;
+        }
+    }
+
+    private class WarningTransform : IAstTransform
+    {
+        public WarningTransform(string warning, int order = 10)
+        {
+            Warning = warning;
+            Order = order;
+        }
+
+        public string Name => "WarningProducer";
+        public int Order { get; }
+        private string Warning { get; }
+
+        public MarkdownDocument Transform(MarkdownDocument doc, TransformContext context)
+        {
+            context.AddWarning(Warning);
             return doc;
         }
     }

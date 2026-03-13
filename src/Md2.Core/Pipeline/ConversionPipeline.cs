@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Core pipeline: parse, transform, emit with cancellation", deps: [Markdig, Md2.Parsing, IAstTransform, IFormatEmitter, ILogger], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Core pipeline: parse, transform, emit with cancellation", deps: [Markdig, Md2.Parsing, IAstTransform, IFormatEmitter, ILogger], state: active, last: "sato@2026-03-13" }
 
 using Markdig;
 using Markdig.Syntax;
@@ -44,7 +44,7 @@ public class ConversionPipeline
         _transforms.Add(transform);
     }
 
-    public MarkdownDocument Transform(MarkdownDocument doc, TransformOptions options, CancellationToken cancellationToken = default)
+    public TransformResult Transform(MarkdownDocument doc, TransformOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(options);
@@ -58,7 +58,7 @@ public class ConversionPipeline
             doc = transform.Transform(doc, context);
         }
 
-        return doc;
+        return new TransformResult(doc, context.Warnings);
     }
 
     public async Task Emit(MarkdownDocument doc, ResolvedTheme theme, IFormatEmitter emitter, EmitOptions options, Stream output)

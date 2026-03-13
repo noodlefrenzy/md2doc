@@ -28,14 +28,14 @@ public class CompositionTests
 
         pipeline.RegisterTransform(new YamlFrontMatterExtractor());
         var transformOptions = new TransformOptions();
-        var transformed = pipeline.Transform(doc, transformOptions);
+        var transformResult = pipeline.Transform(doc, transformOptions);
 
         var theme = ResolvedTheme.CreateDefault();
         var emitOptions = new EmitOptions();
         var emitter = new DocxEmitter();
         var stream = new MemoryStream();
 
-        await pipeline.Emit(transformed, theme, emitter, emitOptions, stream);
+        await pipeline.Emit(transformResult.Document, theme, emitter, emitOptions, stream);
         stream.Position = 0;
 
         var wordDoc = WordprocessingDocument.Open(stream, false);

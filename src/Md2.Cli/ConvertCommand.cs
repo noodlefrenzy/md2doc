@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Root CLI command: markdown to docx with cancellation support", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ThemeCascadeResolver, ILogger], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Root CLI command: markdown to docx with cancellation support", deps: [System.CommandLine, ConversionPipeline, DocxEmitter, ThemeCascadeResolver, ILogger], state: active, last: "sato@2026-03-13" }
 
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -194,9 +194,19 @@ public static class ConvertCommand
             pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
             pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
             var transformOptions = new TransformOptions { RenderMermaid = true };
-            var transformed = pipeline.Transform(doc, transformOptions, cancellationToken);
+            var transformResult = pipeline.Transform(doc, transformOptions, cancellationToken);
+            var transformed = transformResult.Document;
             transformSw.Stop();
             logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
+
+            // Surface any warnings from transforms (e.g. failed Mermaid/Math rendering)
+            if (!quiet)
+            {
+                foreach (var warning in transformResult.Warnings)
+                {
+                    await Console.Error.WriteLineAsync($"Warning: {warning}");
+                }
+            }
 
             // Resolve theme via 4-layer cascade
             var cascadeSw = Stopwatch.StartNew();

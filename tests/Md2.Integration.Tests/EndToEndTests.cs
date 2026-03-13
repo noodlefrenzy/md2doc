@@ -55,7 +55,7 @@ Console.WriteLine(x);
         // Transform (extract front matter)
         pipeline.RegisterTransform(new YamlFrontMatterExtractor());
         var transformOptions = new TransformOptions();
-        var transformed = pipeline.Transform(doc, transformOptions);
+        var transformResult = pipeline.Transform(doc, transformOptions);
 
         // Emit
         var theme = ResolvedTheme.CreateDefault();
@@ -63,7 +63,7 @@ Console.WriteLine(x);
         var emitter = new DocxEmitter();
         var stream = new MemoryStream();
 
-        await pipeline.Emit(transformed, theme, emitter, emitOptions, stream);
+        await pipeline.Emit(transformResult.Document, theme, emitter, emitOptions, stream);
         stream.Position = 0;
 
         var wordDoc = WordprocessingDocument.Open(stream, false);
