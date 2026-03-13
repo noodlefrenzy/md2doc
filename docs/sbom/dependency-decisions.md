@@ -3,7 +3,7 @@ agent-notes:
   ctx: "dependency rationale and transitive dep inventory"
   deps: [docs/sbom/sbom.md, docs/architecture.md]
   state: active
-  last: "pierrot@2026-03-11"
+  last: "pierrot@2026-03-13"
   key: ["rationale for all 6 direct deps", "YamlDotNet safe deser is security-critical"]
 ---
 # Dependency Decisions
@@ -16,7 +16,7 @@ agent-notes:
 ### Markdig
 
 - **Package:** `Markdig`
-- **Version:** latest stable (pin at scaffolding)
+- **Version:** 1.1.1
 - **License:** BSD-2-Clause
 - **Why we're using it:** Markdig is the de facto standard Markdown parser for .NET. It supports CommonMark, GFM (tables, task lists, strikethrough), and a rich extension API. We need a parser that produces a traversable AST (not just HTML output) because we are generating DOCX, not HTML. Markdig's `MarkdownDocument` AST is rich, extensible, and carries source position information.
 - **Alternatives considered:**
@@ -60,7 +60,7 @@ agent-notes:
 ### Microsoft.Playwright
 
 - **Package:** `Microsoft.Playwright`
-- **Version:** latest stable (pin at scaffolding)
+- **Version:** 1.58.0
 - **License:** Apache-2.0
 - **Why we're using it:** We need a headless browser to render Mermaid diagrams to PNG images and to power the live preview mode. Playwright for .NET provides a robust, cross-platform headless Chromium integration with screenshot capabilities, page evaluation, and built-in sandboxing.
 - **Alternatives considered:**
@@ -79,7 +79,7 @@ agent-notes:
 ### TextMateSharp
 
 - **Package:** `TextMateSharp`
-- **Version:** latest stable (pin at scaffolding)
+- **Version:** 2.0.3
 - **License:** MIT
 - **Why we're using it:** We need syntax highlighting for code blocks in the DOCX output. TextMateSharp is a .NET port of Eclipse's tm4e engine that uses TextMate grammar files (the same grammars used by VS Code). This gives us syntax highlighting for 100+ languages without maintaining per-language regex patterns.
 - **Alternatives considered:**
@@ -93,7 +93,7 @@ agent-notes:
 ### System.CommandLine
 
 - **Package:** `System.CommandLine`
-- **Version:** >= 2.0.0
+- **Version:** 2.0.5 (stable)
 - **License:** MIT
 - **Why we're using it:** CLI argument parsing, help generation, tab completion, and middleware. This is Microsoft's official .NET CLI library, designed for the exact use case we have: a CLI tool with subcommands, options, and arguments.
 - **Alternatives considered:**
@@ -116,7 +116,10 @@ Full transitive tree to be generated via `dotnet list package --include-transiti
 | DocumentFormat.OpenXml.Framework | >= 3.0.0 | MIT | DocumentFormat.OpenXml | Core framework package. Same maintainer (Microsoft). |
 | System.IO.Packaging | varies | MIT | DocumentFormat.OpenXml | OPC (ZIP) package handling. Microsoft-maintained. |
 | Onigwrap | varies | MIT | TextMateSharp | Native oniguruma regex bindings. Platform-specific. |
-| TextMateSharp.Grammars | varies | MIT | TextMateSharp (optional) | Bundled TextMate grammar files. May be pulled in separately. |
+| TextMateSharp.Grammars | 2.0.3 | MIT | TextMateSharp (optional) | Bundled TextMate grammar files. Pulled in separately. |
+| Microsoft.Extensions.Logging | 9.0.0 | MIT | Md2.Cli, Md2.Core | Structured logging framework |
+| Microsoft.Extensions.Logging.Abstractions | 9.0.0 | MIT | Md2.Cli, Md2.Core | ILogger abstractions |
+| Microsoft.Extensions.Logging.Console | 9.0.0 | MIT | Md2.Cli | Console provider for --verbose/--debug |
 
 ### License Flags
 
