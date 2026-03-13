@@ -1,0 +1,50 @@
+# agent-notes: { ctx: "editorial preset — magazine-style, high contrast, Didot/Gill Sans", deps: [ThemeDefinition.cs], state: active, last: "dani@2026-03-13" }
+#
+# Editorial preset for md2. Inspired by high-end magazine layouts:
+# dramatic serif headings (Didot/Georgia), clean sans-serif body
+# (Gill Sans/Trebuchet MS), bold crimson accents, generous whitespace.
+# Think Vogue meets The Economist.
+
+meta:
+  name: editorial
+  description: Magazine-style — dramatic serif headings, bold crimson accents, generous whitespace
+  version: 1
+
+typography:
+  headingFont: Georgia
+  bodyFont: "Trebuchet MS"
+  monoFont: "Cascadia Code"
+  monoFontFallback: Consolas
+
+colors:
+  primary: "#8B1A1A"
+  secondary: "#C23B22"
+  bodyText: "#2B2B2B"
+  codeBackground: "#FFF8F0"
+  codeBorder: "#E8D5C4"
+  link: "#8B1A1A"
+  tableHeaderBackground: "#8B1A1A"
+  tableHeaderForeground: "#FFFFFF"
+  tableBorder: "#D4B5A0"
+  tableAlternateRow: "#FDF6F0"
+  blockquoteBorder: "#C23B22"
+  blockquoteText: "#5C3D2E"
+
+docx:
+  baseFontSize: 11
+  heading1Size: 36
+  heading2Size: 24
+  heading3Size: 16
+  heading4Size: 13
+  heading5Size: 11
+  heading6Size: 11
+  lineSpacing: 1.4
+  tableBorderWidth: 2
+  blockquoteIndentTwips: 720
+  page:
+    width: 11906
+    height: 16838
+    marginTop: 1800
+    marginBottom: 1800
+    marginLeft: 2160
+    marginRight: 2160

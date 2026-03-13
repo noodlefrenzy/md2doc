@@ -9,9 +9,9 @@ agent-notes:
 
 **Sprint:** 11
 **Date:** 2026-03-13
-**Sprint Goal:** Dependency hygiene and documentation polish for v1 release.
+**Sprint Goal:** Dependency hygiene, documentation polish, and theme-aware rendering for v1 release.
 
-**Rationale:** All v1 features and process debt are complete. Sprint 11 addresses pre-release findings from the Pierrot dependency health audit and Diego README test. This is the final sprint before v1 release.
+**Rationale:** All v1 features and process debt are complete. Sprint 11 addresses pre-release findings from the Pierrot dependency health audit and Diego README test, plus user-requested theme improvements discovered during preset review. This is the final sprint before v1 release.
 
 ## Priority Order
 
@@ -26,6 +26,8 @@ agent-notes:
 
 | # | Issue | Size | Notes |
 |---|-------|------|-------|
+| 89 | feat(diagrams): theme-aware Mermaid rendering via themeVariables | M | User-confirmed design: base theme + themeVariables mapping from ResolvedTheme |
+| 90 | fix(emit-docx): code block text contrast handling for dark-background themes | M | User-flagged: invisible code in hackterm/dark presets |
 | 88 | docs: update README with preview, doctor, theme commands + project structure | S | Diego 5-minute test P2/P3 findings |
 
 ### P2 — Stretch
@@ -49,15 +51,22 @@ No stretch items. Ship after P0 + P1.
 | 86 | Dependency upgrades | M | None |
 | 87 | SBOM update | S | After dependency upgrades |
 
-### Wave 2: Documentation (1 item)
+### Wave 2: Theme-Aware Rendering + Contrast Fix (2 items)
 
 | # | Issue | Size | Dependencies |
 |---|-------|------|-------------|
-| 88 | README updates | S | None |
+| 89 | Theme-aware Mermaid rendering | M | After #86 (deps may affect Playwright) |
+| 90 | Code block contrast handling | M | None |
+
+### Wave 3: Documentation (1 item)
+
+| # | Issue | Size | Dependencies |
+|---|-------|------|-------------|
+| 88 | README updates | S | After #89/#90 (new features to document) |
 
 ## Architecture Gate
 
-No items require the Architecture Gate. All work is maintenance/docs.
+#89 (Mermaid theming) touches pipeline ordering and cross-package data flow. Design doc exists at `docs/research/mermaid-theme-aware-rendering.md`. ADR + Wei debate required before implementation.
 
 ## Tech Debt
 

@@ -1,0 +1,52 @@
+# agent-notes: { ctx: "bubble preset — late-80s Japan bubble era, neon/geometric, city pop maximalism", deps: [ThemeDefinition.cs], state: active, last: "dani@2026-03-13" }
+#
+# Bubble preset for md2. Inspired by Japan's economic bubble era
+# (1986-1991): the visual language of city pop album art, neon-lit
+# Shibuya signage, and bold corporate confidence. Hot magenta primary,
+# electric blue secondary, chunky geometric headings (Franklin Gothic),
+# clean sans body (Verdana). Oversized H1s, generous spacing, A4 page.
+# Bright, optimistic, slightly maximalist — money was never going to stop.
+
+meta:
+  name: bubble
+  description: Bubble-era Japan — neon magenta, electric blue, geometric boldness, city pop maximalism
+  version: 1
+
+typography:
+  headingFont: "Franklin Gothic Medium"
+  bodyFont: Verdana
+  monoFont: "Cascadia Code"
+  monoFontFallback: Consolas
+
+colors:
+  primary: "#E6007E"
+  secondary: "#00B4D8"
+  bodyText: "#1A1A2E"
+  codeBackground: "#F0E6F6"
+  codeBorder: "#D4A5E0"
+  link: "#00B4D8"
+  tableHeaderBackground: "#E6007E"
+  tableHeaderForeground: "#FFFFFF"
+  tableBorder: "#D4A5E0"
+  tableAlternateRow: "#FFF0F5"
+  blockquoteBorder: "#FFB800"
+  blockquoteText: "#4A1942"
+
+docx:
+  baseFontSize: 11
+  heading1Size: 36
+  heading2Size: 26
+  heading3Size: 18
+  heading4Size: 14
+  heading5Size: 11
+  heading6Size: 11
+  lineSpacing: 1.4
+  tableBorderWidth: 4
+  blockquoteIndentTwips: 720
+  page:
+    width: 11906
+    height: 16838
+    marginTop: 1440
+    marginBottom: 1440
+    marginLeft: 1800
+    marginRight: 1800

@@ -1,0 +1,50 @@
+# agent-notes: { ctx: "rosegarden preset — warm botanical, dusty rose + olive, Baskerville/Gill Sans", deps: [ThemeDefinition.cs], state: active, last: "dani@2026-03-13" }
+#
+# Rose Garden preset for md2. A warm, botanical-inspired palette:
+# dusty rose primary, muted olive secondary, warm cream backgrounds.
+# Classic Baskerville body with airy Gill Sans headings. For documents
+# that want to feel inviting, thoughtful, and distinctly not corporate.
+
+meta:
+  name: rosegarden
+  description: Botanical warmth — dusty rose accents, olive tones, Baskerville body with airy headings
+  version: 1
+
+typography:
+  headingFont: "Gill Sans MT"
+  bodyFont: Baskerville
+  monoFont: "Cascadia Code"
+  monoFontFallback: Consolas
+
+colors:
+  primary: "#8E4A5E"
+  secondary: "#5E7A52"
+  bodyText: "#3B2F33"
+  codeBackground: "#FAF5F0"
+  codeBorder: "#E0D2C8"
+  link: "#5E7A52"
+  tableHeaderBackground: "#8E4A5E"
+  tableHeaderForeground: "#FFF5F0"
+  tableBorder: "#C4AAB2"
+  tableAlternateRow: "#FBF5F2"
+  blockquoteBorder: "#5E7A52"
+  blockquoteText: "#6B5A5F"
+
+docx:
+  baseFontSize: 11
+  heading1Size: 28
+  heading2Size: 21
+  heading3Size: 15
+  heading4Size: 13
+  heading5Size: 11
+  heading6Size: 11
+  lineSpacing: 1.4
+  tableBorderWidth: 3
+  blockquoteIndentTwips: 720
+  page:
+    width: 12240
+    height: 15840
+    marginTop: 1620
+    marginBottom: 1620
+    marginLeft: 1800
+    marginRight: 1800

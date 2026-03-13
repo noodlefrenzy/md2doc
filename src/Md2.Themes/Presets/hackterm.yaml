@@ -1,0 +1,51 @@
+# agent-notes: { ctx: "hackterm preset — terminal green, monospace-forward, cypherpunk energy", deps: [ThemeDefinition.cs], state: active, last: "dani@2026-03-13" }
+#
+# Hackterm preset for md2. Terminal-inspired hacker aesthetic:
+# phosphor green primary, amber secondary, monospace everything.
+# Consolas body text, Cascadia Code headings. Code blocks use
+# near-black backgrounds for that authentic terminal feel.
+# The kind of document a hacker collective would publish.
+
+meta:
+  name: hackterm
+  description: Terminal hacker — phosphor green, monospace-forward, cypherpunk energy
+  version: 1
+
+typography:
+  headingFont: "Cascadia Code"
+  bodyFont: Consolas
+  monoFont: "Cascadia Code"
+  monoFontFallback: "Courier New"
+
+colors:
+  primary: "#00CC33"
+  secondary: "#CC8800"
+  bodyText: "#1A1A1A"
+  codeBackground: "#0D1117"
+  codeBorder: "#00CC33"
+  link: "#00CC33"
+  tableHeaderBackground: "#0D1117"
+  tableHeaderForeground: "#00CC33"
+  tableBorder: "#2A3A2A"
+  tableAlternateRow: "#F0F5F0"
+  blockquoteBorder: "#CC8800"
+  blockquoteText: "#3A3A2A"
+
+docx:
+  baseFontSize: 10.5
+  heading1Size: 26
+  heading2Size: 20
+  heading3Size: 15
+  heading4Size: 13
+  heading5Size: 10.5
+  heading6Size: 10.5
+  lineSpacing: 1.15
+  tableBorderWidth: 2
+  blockquoteIndentTwips: 600
+  page:
+    width: 12240
+    height: 15840
+    marginTop: 1152
+    marginBottom: 1152
+    marginLeft: 1440
+    marginRight: 1440
