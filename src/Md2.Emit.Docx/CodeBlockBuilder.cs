@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml Table for fenced code blocks with mono font, background, syntax highlighting", deps: [ParagraphBuilder, ResolvedTheme, Md2.Core.Ast.SyntaxToken, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Builds OpenXml Table for fenced code blocks with contrast handling", deps: [ParagraphBuilder, ResolvedTheme, Md2.Core.Ast.SyntaxToken, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-13" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -95,7 +95,7 @@ public sealed class CodeBlockBuilder
                 continue;
             }
 
-            var color = token.ForegroundColor ?? theme.BodyTextColor;
+            var color = EnsureContrast(token.ForegroundColor ?? theme.BodyTextColor, theme.CodeBackgroundColor);
             paragraph.Append(CreateCodeRun(token.Text, halfPoints, color, token.FontStyle, theme));
         }
 
@@ -144,6 +144,41 @@ public sealed class CodeBlockBuilder
         var paragraph = CreateCodeParagraphShell();
         paragraph.Append(CreateCodeRun(text, halfPoints, theme.BodyTextColor, SyntaxFontStyle.Normal, theme));
         return paragraph;
+    }
+
+    /// <summary>
+    /// Returns the foreground color adjusted for contrast against the background.
+    /// If the contrast ratio is too low, returns the theme's body text color or its inverse.
+    /// </summary>
+    internal static string EnsureContrast(string fgHex, string bgHex)
+    {
+        var fgLum = RelativeLuminance(fgHex);
+        var bgLum = RelativeLuminance(bgHex);
+
+        // WCAG contrast ratio: (L1 + 0.05) / (L2 + 0.05) where L1 >= L2
+        var lighter = System.Math.Max(fgLum, bgLum);
+        var darker = System.Math.Min(fgLum, bgLum);
+        var ratio = (lighter + 0.05) / (darker + 0.05);
+
+        // Minimum 3:1 for large text (code blocks use reduced font size)
+        if (ratio >= 3.0)
+            return fgHex;
+
+        // Insufficient contrast: flip to light or dark based on background
+        return bgLum < 0.5 ? "C9D1D9" : "1F2328";
+    }
+
+    private static double RelativeLuminance(string hex)
+    {
+        var r = Convert.ToInt32(hex[..2], 16) / 255.0;
+        var g = Convert.ToInt32(hex[2..4], 16) / 255.0;
+        var b = Convert.ToInt32(hex[4..6], 16) / 255.0;
+
+        r = r <= 0.03928 ? r / 12.92 : System.Math.Pow((r + 0.055) / 1.055, 2.4);
+        g = g <= 0.03928 ? g / 12.92 : System.Math.Pow((g + 0.055) / 1.055, 2.4);
+        b = b <= 0.03928 ? b / 12.92 : System.Math.Pow((b + 0.055) / 1.055, 2.4);
+
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     }
 
     private Run CreateCodeRun(string text, string halfPoints, string color,
