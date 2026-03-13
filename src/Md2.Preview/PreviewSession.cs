@@ -27,10 +27,13 @@ public sealed class PreviewSession : IAsyncDisposable
     private FileWatcher? _watcher;
     private bool _disposed;
 
+    private readonly bool _openBrowser;
+
     public PreviewSession(
         string filePath,
         ResolvedTheme theme,
         MarkdownPipeline pipeline,
+        bool openBrowser = true,
         Action<string>? log = null)
     {
         _filePath = Path.GetFullPath(filePath);
@@ -38,6 +41,7 @@ public sealed class PreviewSession : IAsyncDisposable
         _pipeline = pipeline;
         _renderer = new HtmlPreviewRenderer();
         _server = new PreviewServer();
+        _openBrowser = openBrowser;
         _log = log;
     }
 
@@ -55,16 +59,23 @@ public sealed class PreviewSession : IAsyncDisposable
         // Start server in background
         var serverTask = Task.Run(() => _server.RunAsync(cancellationToken), cancellationToken);
 
-        // Open browser
-        _log?.Invoke("Opening browser...");
-        _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        // Open browser (unless --no-browser)
+        if (_openBrowser)
         {
-            Headless = false
-        });
-        var page = await _browser.NewPageAsync();
-        await page.GotoAsync(_server.Url);
-        _log?.Invoke($"Preview open at {_server.Url}");
+            _log?.Invoke("Opening browser...");
+            _playwright = await Playwright.CreateAsync();
+            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = false
+            });
+            var page = await _browser.NewPageAsync();
+            await page.GotoAsync(_server.Url);
+            _log?.Invoke($"Preview open at {_server.Url}");
+        }
+        else
+        {
+            _log?.Invoke($"Preview available at {_server.Url}");
+        }
 
         // Start file watcher
         _watcher = new FileWatcher(_filePath, () =>

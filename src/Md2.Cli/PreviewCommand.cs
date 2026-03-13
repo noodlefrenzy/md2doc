@@ -38,12 +38,17 @@ public static class PreviewCommand
             Arity = ArgumentArity.ZeroOrMore,
         };
 
+        var noBrowserOption = new Option<bool>(
+            aliases: new[] { "--no-browser" },
+            description: "Start the server without opening a browser (use with port forwarding)");
+
         var command = new Command("preview", "Open a live HTML preview of a Markdown file")
         {
             inputArgument,
             presetOption,
             themeOption,
-            styleOption
+            styleOption,
+            noBrowserOption
         };
 
         command.SetHandler(async (InvocationContext context) =>
@@ -52,9 +57,10 @@ public static class PreviewCommand
             var preset = context.ParseResult.GetValueForOption(presetOption);
             var themeFile = context.ParseResult.GetValueForOption(themeOption);
             var styles = context.ParseResult.GetValueForOption(styleOption) ?? [];
+            var noBrowser = context.ParseResult.GetValueForOption(noBrowserOption);
             var cancellationToken = context.GetCancellationToken();
 
-            context.ExitCode = await ExecuteAsync(input, preset, themeFile, styles, cancellationToken);
+            context.ExitCode = await ExecuteAsync(input, preset, themeFile, styles, noBrowser, cancellationToken);
         });
 
         return command;
@@ -65,6 +71,7 @@ public static class PreviewCommand
         string? preset,
         FileInfo? themeFile,
         string[] styles,
+        bool noBrowser,
         CancellationToken cancellationToken)
     {
         if (!input.Exists)
@@ -135,6 +142,7 @@ public static class PreviewCommand
                 input.FullName,
                 theme,
                 pipeline,
+                openBrowser: !noBrowser,
                 msg => Console.Error.WriteLine(msg));
 
             await session.RunAsync(cancellationToken);

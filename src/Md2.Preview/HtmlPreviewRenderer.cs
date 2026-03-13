@@ -52,17 +52,20 @@ public class HtmlPreviewRenderer
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>md2 Preview</title>
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
                 <style>
                     {GenerateCss(theme)}
                 </style>
-                <script>
-                    {ReloadScript}
-                </script>
             </head>
             <body>
                 <div id="content">
                     {bodyHtml}
                 </div>
+                <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"></script>
+                <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+                <script>
+                    {ReloadScript}
+                </script>
             </body>
             </html>
             """;
@@ -229,6 +232,45 @@ public class HtmlPreviewRenderer
     }
 
     private const string ReloadScript = """
+        function renderMath() {
+            if (typeof katex === 'undefined') return;
+            document.querySelectorAll('span.math').forEach(el => {
+                const tex = el.textContent.replace(/^\\\(|\\\)$/g, '').trim();
+                try { katex.render(tex, el, { throwOnError: false }); }
+                catch (e) { /* leave original */ }
+            });
+            document.querySelectorAll('div.math').forEach(el => {
+                const tex = el.textContent.replace(/^\\\[|\\\]$/g, '').trim();
+                try { katex.render(tex, el, { displayMode: true, throwOnError: false }); }
+                catch (e) { /* leave original */ }
+            });
+        }
+
+        async function renderMermaid() {
+            if (typeof mermaid === 'undefined') return;
+            mermaid.initialize({ startOnLoad: false, theme: 'default' });
+            const nodes = document.querySelectorAll('pre.mermaid');
+            for (const node of nodes) {
+                if (node.dataset.processed) continue;
+                const id = 'mermaid-' + Math.random().toString(36).slice(2, 9);
+                try {
+                    const { svg } = await mermaid.render(id, node.textContent);
+                    node.innerHTML = svg;
+                    node.dataset.processed = 'true';
+                } catch (e) {
+                    /* leave original code block */
+                }
+            }
+        }
+
+        async function renderAll() {
+            renderMath();
+            await renderMermaid();
+        }
+
+        // Initial render once scripts are loaded
+        window.addEventListener('load', () => setTimeout(renderAll, 100));
+
         (function() {
             let lastVersion = 0;
             async function poll() {
@@ -241,6 +283,7 @@ public class HtmlPreviewRenderer
                         const scrollY = window.scrollY;
                         document.getElementById('content').innerHTML = html;
                         window.scrollTo(0, scrollY);
+                        await renderAll();
                     }
                     lastVersion = data.version;
                 } catch (e) {
