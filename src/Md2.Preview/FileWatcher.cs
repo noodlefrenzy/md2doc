@@ -49,9 +49,10 @@ public sealed class FileWatcher : IDisposable
         {
             _onChange();
         }
-        catch
+        catch (Exception)
         {
-            // Swallow errors from callback to avoid crashing the timer thread
+            // Callback errors are expected (e.g. file mid-write).
+            // The timer will fire again on next change.
         }
     }
 

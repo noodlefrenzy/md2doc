@@ -92,8 +92,9 @@ public sealed class PreviewSession : IAsyncDisposable
         {
             var markdown = File.ReadAllText(_filePath);
 
-            // Get body HTML (for hot-reload content replacement)
+            // Parse once, render both body and full page from the same AST
             var document = Markdown.Parse(markdown, _pipeline);
+
             var bodySb = new StringBuilder();
             using (var writer = new StringWriter(bodySb))
             {
@@ -103,8 +104,7 @@ public sealed class PreviewSession : IAsyncDisposable
             }
             var bodyHtml = bodySb.ToString();
 
-            // Get full HTML page
-            var fullHtml = _renderer.RenderFromSource(markdown, _theme, _pipeline);
+            var fullHtml = _renderer.Render(document, _theme, _pipeline);
 
             _server.UpdateContent(fullHtml, bodyHtml);
         }

@@ -11,12 +11,13 @@ namespace Md2.Preview;
 /// </summary>
 public sealed class PreviewServer : IDisposable
 {
+    private record ContentSnapshot(string FullHtml, string BodyHtml, long Version);
+
     private readonly HttpListener _listener;
-    private string _currentHtml = "";
-    private string _currentBodyHtml = "";
-    private long _version;
+    private volatile ContentSnapshot _content = new("", "", 0);
     private bool _disposed;
 
+    // Binds to localhost only — intentional for security (no network exposure)
     public PreviewServer(int port = 0)
     {
         Port = port > 0 ? port : FindAvailablePort();
@@ -28,13 +29,11 @@ public sealed class PreviewServer : IDisposable
     public string Url => $"http://localhost:{Port}/";
 
     /// <summary>
-    /// Updates the current HTML content and increments the version.
+    /// Updates the current HTML content and increments the version atomically.
     /// </summary>
     public void UpdateContent(string fullHtml, string bodyHtml)
     {
-        _currentHtml = fullHtml;
-        _currentBodyHtml = bodyHtml;
-        Interlocked.Increment(ref _version);
+        _content = new ContentSnapshot(fullHtml, bodyHtml, _content.Version + 1);
     }
 
     /// <summary>
@@ -77,22 +76,23 @@ public sealed class PreviewServer : IDisposable
     private async Task HandleRequestAsync(HttpListenerContext context)
     {
         var path = context.Request.Url?.AbsolutePath ?? "/";
+        var snapshot = _content;
 
         try
         {
             switch (path)
             {
                 case "/":
-                    await WriteResponseAsync(context, _currentHtml, "text/html");
+                    await WriteResponseAsync(context, snapshot.FullHtml, "text/html");
                     break;
 
                 case "/reload":
-                    var json = JsonSerializer.Serialize(new { version = Interlocked.Read(ref _version) });
+                    var json = JsonSerializer.Serialize(new { version = snapshot.Version });
                     await WriteResponseAsync(context, json, "application/json");
                     break;
 
                 case "/content":
-                    await WriteResponseAsync(context, _currentBodyHtml, "text/html");
+                    await WriteResponseAsync(context, snapshot.BodyHtml, "text/html");
                     break;
 
                 default:
@@ -101,9 +101,21 @@ public sealed class PreviewServer : IDisposable
                     break;
             }
         }
+        catch (HttpListenerException)
+        {
+            // Client disconnected — expected during normal browsing
+        }
         catch (Exception)
         {
-            // Client disconnected or other I/O error — ignore
+            try
+            {
+                context.Response.StatusCode = 500;
+                await WriteResponseAsync(context, "Internal Server Error", "text/plain");
+            }
+            catch
+            {
+                // Response may already be in a broken state
+            }
         }
     }
 

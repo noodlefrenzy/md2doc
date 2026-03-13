@@ -1,6 +1,7 @@
 // agent-notes: { ctx: "Renders Markdig AST to themed HTML for preview", deps: [Markdig, Md2.Core.Pipeline.ResolvedTheme], state: active, last: "sato@2026-03-13" }
 
 using System.Text;
+using System.Text.RegularExpressions;
 using Markdig;
 using Markdig.Renderers;
 using Markdig.Syntax;
@@ -67,28 +68,51 @@ public class HtmlPreviewRenderer
             """;
     }
 
+    private static string SanitizeFont(string value) =>
+        Regex.Replace(value, @"[^a-zA-Z0-9 _\-]", "");
+
+    private static string SanitizeHex(string value) =>
+        Regex.Replace(value, @"[^a-fA-F0-9]", "");
+
     private static string GenerateCss(ResolvedTheme theme)
     {
+        var bodyFont = SanitizeFont(theme.BodyFont);
+        var headingFont = SanitizeFont(theme.HeadingFont);
+        var monoFont = SanitizeFont(theme.MonoFont);
+        var monoFontFallback = SanitizeFont(theme.MonoFontFallback);
+        var primary = SanitizeHex(theme.PrimaryColor);
+        var secondary = SanitizeHex(theme.SecondaryColor);
+        var bodyText = SanitizeHex(theme.BodyTextColor);
+        var codeBg = SanitizeHex(theme.CodeBackgroundColor);
+        var codeBorder = SanitizeHex(theme.CodeBlockBorderColor);
+        var link = SanitizeHex(theme.LinkColor);
+        var tableHeaderBg = SanitizeHex(theme.TableHeaderBackground);
+        var tableHeaderFg = SanitizeHex(theme.TableHeaderForeground);
+        var tableBorder = SanitizeHex(theme.TableBorderColor);
+        var tableAltRow = SanitizeHex(theme.TableAlternateRowBackground);
+        var blockquoteBorder = SanitizeHex(theme.BlockquoteBorderColor);
+        var blockquoteText = SanitizeHex(theme.BlockquoteTextColor);
+
         return $$"""
             :root {
-                --primary: #{{theme.PrimaryColor}};
-                --secondary: #{{theme.SecondaryColor}};
-                --body-text: #{{theme.BodyTextColor}};
-                --code-bg: #{{theme.CodeBackgroundColor}};
-                --code-border: #{{theme.CodeBlockBorderColor}};
-                --link: #{{theme.LinkColor}};
-                --table-header-bg: #{{theme.TableHeaderBackground}};
-                --table-header-fg: #{{theme.TableHeaderForeground}};
-                --table-border: #{{theme.TableBorderColor}};
-                --table-alt-row: #{{theme.TableAlternateRowBackground}};
-                --blockquote-border: #{{theme.BlockquoteBorderColor}};
-                --blockquote-text: #{{theme.BlockquoteTextColor}};
+                --primary: #{{primary}};
+                --secondary: #{{secondary}};
+                --body-text: #{{bodyText}};
+                --code-bg: #{{codeBg}};
+                --code-border: #{{codeBorder}};
+                --link: #{{link}};
+                --table-header-bg: #{{tableHeaderBg}};
+                --table-header-fg: #{{tableHeaderFg}};
+                --table-border: #{{tableBorder}};
+                --table-alt-row: #{{tableAltRow}};
+                --blockquote-border: #{{blockquoteBorder}};
+                --blockquote-text: #{{blockquoteText}};
             }
 
             * { margin: 0; padding: 0; box-sizing: border-box; }
 
             body {
-                font-family: '{{theme.BodyFont}}', 'Georgia', serif;
+                font-family: '{{bodyFont}}', 'Georgia', serif;
                 font-size: {{theme.BaseFontSize}}pt;
                 line-height: {{theme.LineSpacing}};
                 color: var(--body-text);
@@ -99,7 +123,7 @@ public class HtmlPreviewRenderer
             }
 
             h1, h2, h3, h4, h5, h6 {
-                font-family: '{{theme.HeadingFont}}', 'Calibri', sans-serif;
+                font-family: '{{headingFont}}', 'Calibri', sans-serif;
                 color: var(--primary);
                 margin-top: 1.5em;
                 margin-bottom: 0.5em;
@@ -117,7 +141,7 @@ public class HtmlPreviewRenderer
             a:hover { text-decoration: underline; }
 
             code {
-                font-family: '{{theme.MonoFont}}', '{{theme.MonoFontFallback}}', monospace;
+                font-family: '{{monoFont}}', '{{monoFontFallback}}', monospace;
                 background: var(--code-bg);
                 border: 1px solid var(--code-border);
                 border-radius: 3px;

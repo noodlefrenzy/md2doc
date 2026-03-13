@@ -135,4 +135,26 @@ public class HtmlPreviewRendererTests
         html.ShouldContain("--table-border:");
         html.ShouldContain("--table-alt-row:");
     }
+
+    [Fact]
+    public void Render_SanitizesFontNames()
+    {
+        var theme = new ResolvedTheme { BodyFont = "Evil'; } body { background: red; } .x { font: '" };
+
+        var html = _renderer.RenderFromSource("test", theme, _pipeline);
+
+        // The injected CSS should be stripped — no closing single quotes or braces from font name
+        html.ShouldNotContain("background: red");
+    }
+
+    [Fact]
+    public void Render_SanitizesColorHex()
+    {
+        var theme = new ResolvedTheme { PrimaryColor = "FF0000; } body { display: none" };
+
+        var html = _renderer.RenderFromSource("test", theme, _pipeline);
+
+        html.ShouldNotContain("display: none");
+        html.ShouldContain("FF0000");
+    }
 }
