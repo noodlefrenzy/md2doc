@@ -85,6 +85,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 | Root command | `ConvertCommand` | Default: infer format from -o extension |
 | Theme commands | `ThemeResolveCommand` | `md2 theme resolve` with cascade trace |
 | Preview command | `PreviewCommand` | Hot-reload preview via Playwright |
+| Doctor command | `DoctorCommand` | Environment diagnostics (runtime, Chromium, TextMateSharp) |
 | Pipeline wiring | `PipelineFactory` | Composes pipeline from CLI options |
 
 **External deps:** System.CommandLine, Spectre.Console (output formatting)
@@ -95,7 +96,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 
 | Area | Key Types | Notes |
 |------|----------|-------|
-| Pipeline | `ConversionPipeline` | Parse -> Transform -> Style Resolve -> Emit |
+| Pipeline | `ConversionPipeline`, `TransformResult` | Parse -> Transform -> Style Resolve -> Emit |
 | Transforms | `IAstTransform`, `TransformContext` | Ordered visitors over Markdig AST |
 | Emitter | `IFormatEmitter`, `EmitOptions` | Format-agnostic emit contract |
 | Types | `ResolvedTheme`, `StyleWarning`, `DocumentMetadata` | Shared value types |
@@ -217,12 +218,12 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 
 | Package | Tests | Focus |
 |---------|-------|-------|
-| Md2.Core.Tests | 63 | Pipeline orchestration, transform ordering |
+| Md2.Core.Tests | 71 | Pipeline orchestration, transform ordering, warnings |
 | Md2.Parsing.Tests | 43 | Extension coverage, front matter extraction |
-| Md2.Emit.Docx.Tests | 123 | Style application, element construction |
-| Md2.Themes.Tests | 119 | Theme parsing, cascade resolution, validation, formatting |
+| Md2.Emit.Docx.Tests | 176 | Style application, element construction |
+| Md2.Themes.Tests | 152 | Theme parsing, cascade resolution, validation, formatting |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 26 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer |
-| Md2.Integration.Tests | 27 | End-to-end pipeline validation |
-| **Total** | **458** | |
+| Md2.Integration.Tests | 73 | End-to-end pipeline, composition, doctor, comprehensive doc |
+| **Total** | **558** | |
