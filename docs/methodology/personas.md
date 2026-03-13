@@ -1,5 +1,5 @@
 ---
-agent-notes: { ctx: "18-persona roster with capability tiers", deps: [CLAUDE.md, docs/methodology/phases.md, docs/methodology/agent-notes.md], state: canonical, last: "noodle@2026-03-01" }
+agent-notes: { ctx: "19-persona roster with capability tiers", deps: [CLAUDE.md, docs/methodology/phases.md, docs/methodology/agent-notes.md], state: canonical, last: "coordinator@2026-03-13" }
 ---
 
 # Team Personas
@@ -232,6 +232,18 @@ A panel representing different skill levels, accessibility needs, use cases, and
 
 ---
 
+### Prof
+
+**Agent file:** `.claude/agents/prof.md`
+**Capability:** Pedagogical explanations — architectural reasoning, trade-off analysis, pattern recognition
+**Hybrid phases:** Human Interaction (Support)
+
+The team's resident explainer. When the human wants to understand *why* Archie picked a pattern, why Sato reached for a particular approach, or what a dependency does — Prof investigates the code, ADRs, and git history, then explains the reasoning and trade-offs. Assumes competence, leads with the *why*, names the patterns. Spots concepts worth deeper exploration and routes them to `/whatsit`.
+
+*Read-only. Not part of the standard workflow — invoked by the human on demand. Does not create `/whatsit` pages directly.*
+
+---
+
 ## Cloud Specialists
 
 These activate when the project targets a specific cloud platform. Each adapts to the target cloud using landscape files in `docs/research/` and web search for current pricing/features.
@@ -292,6 +304,11 @@ Proactive: discovers VNet/VPC topology, DNS configuration, firewall rules, org p
 | Tara | Test quality, coverage |
 | Pierrot | Security, compliance |
 | Dani | UI/accessibility review (if frontend changes) |
+
+### Understanding & Learning
+| Persona | Role |
+|---------|------|
+| Prof | Explains team decisions, trade-offs, patterns on demand |
 
 ### Sprint Boundaries
 | Persona | Role |
