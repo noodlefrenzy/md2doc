@@ -3,7 +3,7 @@ agent-notes:
   ctx: "codebase structural overview for humans and agents"
   deps: [docs/architecture.md]
   state: active
-  last: "archie@2026-03-11"
+  last: "sato@2026-03-13"
   key: ["UPDATE when adding packages, modules, or changing public APIs"]
 ---
 # Code Map
@@ -225,5 +225,6 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 26 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer |
-| Md2.Integration.Tests | 73 | End-to-end pipeline, composition, doctor, comprehensive doc |
-| **Total** | **558** | |
+| Md2.Preview.Tests | 30 | HTML renderer, server endpoints, file watcher, CSS sanitization |
+| Md2.Integration.Tests | 76 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
+| **Total** | **591** | |

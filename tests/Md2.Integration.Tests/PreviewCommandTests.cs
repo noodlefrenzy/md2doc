@@ -42,4 +42,22 @@ public class PreviewCommandTests
         command.Name.ShouldBe("preview");
         command.Description.ShouldBe("Open a live HTML preview of a Markdown file");
     }
+
+    [Fact]
+    public async Task Preview_InvalidPreset_ReturnsExitCode2()
+    {
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllText(tempFile, "# Test");
+        try
+        {
+            var command = Md2.Cli.PreviewCommand.Create();
+            var result = await command.InvokeAsync($"{tempFile} --preset nonexistent");
+
+            result.ShouldBe(2);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }

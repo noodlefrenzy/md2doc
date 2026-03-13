@@ -140,10 +140,20 @@ public static class PreviewCommand
             await session.RunAsync(cancellationToken);
             return 0;
         }
+        catch (ArgumentException ex) when (ex.Message.Contains("Unknown preset"))
+        {
+            await Console.Error.WriteLineAsync($"Error: {ex.Message.Split(Environment.NewLine)[0]}");
+            return 2;
+        }
         catch (Md2Exception ex)
         {
             await Console.Error.WriteLineAsync($"Error: {ex.UserMessage}");
             return 1;
+        }
+        catch (OperationCanceledException)
+        {
+            await Console.Error.WriteLineAsync("Preview stopped.");
+            return 0;
         }
         catch (Exception ex)
         {
