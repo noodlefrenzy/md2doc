@@ -1,4 +1,3 @@
-<!-- agent-notes: { ctx: "public-facing README for md2doc", deps: [CLAUDE.md, docs/code-map.md], state: active, last: "diego@2026-03-14" } -->
 
 # md2
 
@@ -181,6 +180,10 @@ tests/
   Md2.Preview.Tests/
   Md2.Integration.Tests/
 ```
+
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 

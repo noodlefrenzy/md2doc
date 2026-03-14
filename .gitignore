@@ -22,8 +22,12 @@ obj/
 # IDE and editor files
 .idea/
 .vscode/
+.vs/
 *.swp
 *.swo
+*.user
+*.suo
+*.dotsettings.user
 *~
 .DS_Store
 Thumbs.db
