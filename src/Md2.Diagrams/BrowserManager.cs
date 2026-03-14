@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Shared Playwright browser lifecycle for Mermaid/Math", deps: [Microsoft.Playwright, ILogger, Md2.Core.Exceptions], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Shared Playwright browser lifecycle for Mermaid/Math", deps: [Microsoft.Playwright, ILogger, Md2.Core.Exceptions], state: active, last: "sato@2026-03-14" }
 
 using Md2.Core.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -20,6 +20,7 @@ public sealed class BrowserManager : IAsyncDisposable
     public const int PageTimeoutMs = 30_000;
 
     private readonly ILogger<BrowserManager> _logger;
+    private readonly SemaphoreSlim _launchLock = new(1, 1);
     private IPlaywright? _playwright;
     private IBrowser? _browser;
     private bool _disposed;
@@ -67,42 +68,54 @@ public sealed class BrowserManager : IAsyncDisposable
         if (_browser is not null)
             return _browser;
 
-        if (!IsChromiumInstalled())
-        {
-            throw new Md2ConversionException(
-                "Chromium is not installed at the expected Playwright browsers path.",
-                "Chromium is not installed. Run 'playwright install chromium' or 'md2 doctor' for help.");
-        }
-
-        _logger.LogInformation("Launching Chromium browser");
-        cancellationToken.ThrowIfCancellationRequested();
-
+        await _launchLock.WaitAsync(cancellationToken);
         try
         {
-            _playwright = await Playwright.CreateAsync();
-            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-            {
-                Headless = true,
-                Timeout = LaunchTimeoutMs,
-            });
-        }
-        catch (PlaywrightException ex) when (ex.Message.Contains("Executable doesn't exist", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new Md2ConversionException(
-                $"Chromium executable not found: {ex.Message}",
-                "Chromium is not installed. Run 'playwright install chromium' or 'md2 doctor' for help.",
-                ex);
-        }
-        catch (TimeoutException ex)
-        {
-            throw new Md2ConversionException(
-                $"Browser launch timed out after {LaunchTimeoutMs}ms: {ex.Message}",
-                "Browser launch timed out. This may indicate a resource-constrained environment.",
-                ex);
-        }
+            // Double-check after acquiring lock
+            if (_browser is not null)
+                return _browser;
 
-        _logger.LogInformation("Chromium browser launched ({ContextCount} contexts)", _browser.Contexts.Count);
-        return _browser;
+            if (!IsChromiumInstalled())
+            {
+                throw new Md2ConversionException(
+                    "Chromium is not installed at the expected Playwright browsers path.",
+                    "Chromium is not installed. Run 'playwright install chromium' or 'md2 doctor' for help.");
+            }
+
+            _logger.LogInformation("Launching Chromium browser");
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                _playwright = await Playwright.CreateAsync();
+                _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+                {
+                    Headless = true,
+                    Timeout = LaunchTimeoutMs,
+                });
+            }
+            catch (PlaywrightException ex) when (ex.Message.Contains("Executable doesn't exist", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Md2ConversionException(
+                    $"Chromium executable not found: {ex.Message}",
+                    "Chromium is not installed. Run 'playwright install chromium' or 'md2 doctor' for help.",
+                    ex);
+            }
+            catch (TimeoutException ex)
+            {
+                throw new Md2ConversionException(
+                    $"Browser launch timed out after {LaunchTimeoutMs}ms: {ex.Message}",
+                    "Browser launch timed out. This may indicate a resource-constrained environment.",
+                    ex);
+                }
+
+            _logger.LogInformation("Chromium browser launched ({ContextCount} contexts)", _browser.Contexts.Count);
+            return _browser;
+        }
+        finally
+        {
+            _launchLock.Release();
+        }
     }
 
     /// <summary>

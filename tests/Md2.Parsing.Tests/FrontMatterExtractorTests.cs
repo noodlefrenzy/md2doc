@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Issue 4 YAML front matter extraction tests, TDD red", deps: [Md2.Parsing, Md2.Core.Ast, Markdig, YamlDotNet], state: "red", last: "tara@2026-03-11" }
+// agent-notes: { ctx: "Issue 4 YAML front matter extraction tests, TDD red", deps: [Md2.Parsing, Md2.Core.Ast, Markdig, YamlDotNet], state: "red", last: "tara@2026-03-14" }
 
 using Markdig;
 using Markdig.Extensions.Yaml;
@@ -161,5 +161,48 @@ public class FrontMatterExtractorTests
         metadata.ShouldNotBeNull();
         metadata.Title.ShouldBeNull();
         metadata.CustomFields.ShouldBeEmpty();
+    }
+
+    // ── H-1: YAML type tag safety ───────────────────────────────────────
+
+    [Fact]
+    public void Extract_YamlBinaryTag_RejectedSafely()
+    {
+        // !!binary is a YAML type tag that could trigger unsafe deserialization
+        // with object targets. With Dictionary<string, string> deserialization,
+        // unknown tags are safely rejected by throwing FrontMatterParseException.
+        var markdown = "---\ntitle: Safe Doc\npayload: !!binary aGVsbG8=\n---\n\n# Content";
+        var doc = ParseWithFrontMatter(markdown);
+
+        Should.Throw<FrontMatterParseException>(() => FrontMatterExtractor.Extract(doc));
+    }
+
+    [Fact]
+    public void Extract_YamlCustomTag_RejectedSafely()
+    {
+        // Custom YAML tags like !!python/object must never trigger type instantiation.
+        // With strongly-typed deserialization (Dictionary<string, string>), these tags
+        // are safely rejected with a FrontMatterParseException.
+        var markdown = "---\ntitle: Tag Test\nevil: !!python/object:os.system 'echo pwned'\n---\n\n# Content";
+        var doc = ParseWithFrontMatter(markdown);
+
+        Should.Throw<FrontMatterParseException>(() => FrontMatterExtractor.Extract(doc));
+    }
+
+    [Fact]
+    public void Extract_PlainStringsOnly_NoObjectDeserialization()
+    {
+        // Verify that all front matter values are strings — no object, binary, or
+        // complex types can sneak through via the deserializer.
+        var markdown = "---\ntitle: Plain Test\nauthor: Jane\ncustom: some value\nnumber: 42\n---\n\n# Content";
+        var doc = ParseWithFrontMatter(markdown);
+
+        var metadata = FrontMatterExtractor.Extract(doc);
+
+        metadata.ShouldNotBeNull();
+        metadata.Title.ShouldBe("Plain Test");
+        metadata.Author.ShouldBe("Jane");
+        metadata.CustomFields["custom"].ShouldBe("some value");
+        metadata.CustomFields["number"].ShouldBe("42");
     }
 }

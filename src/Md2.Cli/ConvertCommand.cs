@@ -301,7 +301,8 @@ public static class ConvertCommand
             {
                 IncludeToc = toc,
                 TocDepth = tocDepth,
-                IncludeCoverPage = cover
+                IncludeCoverPage = cover,
+                InputBaseDirectory = Path.GetDirectoryName(Path.GetFullPath(input.FullName))
             };
             var emitter = new DocxEmitter();
 

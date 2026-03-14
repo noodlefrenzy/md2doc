@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Options controlling document emission", deps: [], state: "green", last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Options controlling document emission", deps: [], state: "green", last: "sato@2026-03-14" }
 
 namespace Md2.Core.Pipeline;
 
@@ -10,4 +10,10 @@ public class EmitOptions
     public bool IncludeCoverPage { get; set; }
     public string? PageSize { get; set; }
     public string? Margins { get; set; }
+
+    /// <summary>
+    /// Base directory for resolving relative image paths. Images outside this directory are rejected.
+    /// Typically set to the input Markdown file's parent directory.
+    /// </summary>
+    public string? InputBaseDirectory { get; set; }
 }

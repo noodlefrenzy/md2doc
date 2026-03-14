@@ -30,8 +30,9 @@ public class DocxAstVisitor
     private readonly BookmarkManager _bookmarkManager;
     private readonly MainDocumentPart _mainDocumentPart;
     private readonly ResolvedTheme _theme;
+    private readonly string? _baseDirectory;
 
-    public DocxAstVisitor(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart, ResolvedTheme theme)
+    public DocxAstVisitor(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart, ResolvedTheme theme, string? baseDirectory = null)
     {
         _paragraphBuilder = paragraphBuilder;
         _tableBuilder = new TableBuilder(paragraphBuilder, VisitInline);
@@ -41,6 +42,7 @@ public class DocxAstVisitor
         _bookmarkManager = new BookmarkManager();
         _mainDocumentPart = mainDocumentPart;
         _theme = theme;
+        _baseDirectory = baseDirectory;
     }
 
     // Keep backward-compatible constructor
@@ -381,7 +383,7 @@ public class DocxAstVisitor
         if (mermaidPath != null && File.Exists(mermaidPath))
         {
             // Empty alt text suppresses visible caption; "Mermaid diagram" used only as DocProperties.Description
-            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, "", _theme);
+            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, "", _theme, _baseDirectory);
             return imageParagraphs.ToArray<OpenXmlElement>();
         }
 
@@ -546,7 +548,7 @@ public class DocxAstVisitor
         if (link.IsImage)
         {
             var altText = ExtractInlineText(link);
-            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, link.Url, altText, _theme);
+            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, link.Url, altText, _theme, _baseDirectory);
             // Return only Run elements (the Drawing), filter out Paragraph-level elements
             return imageParagraphs
                 .SelectMany(p => p.ChildElements.OfType<Run>().Select(r => (OpenXmlElement)r.CloneNode(true)))

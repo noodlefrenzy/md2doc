@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "md2 theme extract — extracts DOCX template styles to YAML", deps: [DocxStyleExtractor.cs, ThemeDefinition.cs, YamlDotNet], state: active, last: "sato@2026-03-13" }
+// agent-notes: { ctx: "md2 theme extract — extracts DOCX template styles to YAML", deps: [DocxStyleExtractor.cs, ThemeDefinition.cs, TemplateSafetyChecker.cs, YamlDotNet], state: active, last: "sato@2026-03-14" }
 
 using System.CommandLine;
 using Md2.Themes;
@@ -48,6 +48,16 @@ public static class ThemeExtractCommand
 
         try
         {
+            var safety = TemplateSafetyChecker.Check(template.FullName);
+            if (!safety.IsValid)
+            {
+                foreach (var error in safety.Errors)
+                {
+                    await Console.Error.WriteLineAsync($"Error: {error}");
+                }
+                return 2;
+            }
+
             var theme = DocxStyleExtractor.Extract(template.FullName);
 
             var serializer = new SerializerBuilder()

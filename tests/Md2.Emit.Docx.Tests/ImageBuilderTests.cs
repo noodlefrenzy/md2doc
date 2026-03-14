@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Tests for ImageBuilder: placeholder, scaling, alt text, captions", deps: [Md2.Emit.Docx.ImageBuilder, DocumentFormat.OpenXml], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Tests for ImageBuilder: placeholder, scaling, alt text, captions, path safety", deps: [Md2.Emit.Docx.ImageBuilder, DocumentFormat.OpenXml], state: red, last: "tara@2026-03-14" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -321,5 +321,50 @@ public class ImageBuilderTests
         {
             File.Delete(pngPath);
         }
+    }
+
+    // ── H-2: Path traversal prevention ──────────────────────────────────
+
+    [Fact]
+    public void IsPathSafe_AbsolutePath_ReturnsFalse()
+    {
+        ImageBuilder.IsPathSafe("/etc/hostname", "/home/user/docs").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void IsPathSafe_PathTraversal_ReturnsFalse()
+    {
+        ImageBuilder.IsPathSafe("../../../etc/hostname", "/home/user/docs").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void IsPathSafe_RelativeWithinBaseDirectory_ReturnsTrue()
+    {
+        ImageBuilder.IsPathSafe("images/photo.png", "/home/user/docs").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void IsPathSafe_SimpleFilename_ReturnsTrue()
+    {
+        ImageBuilder.IsPathSafe("photo.png", "/home/user/docs").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void IsPathSafe_NullPath_ReturnsFalse()
+    {
+        ImageBuilder.IsPathSafe(null!, null).ShouldBeFalse();
+    }
+
+    [Fact(Skip = "Windows-only: drive-letter paths are not rooted on Linux")]
+    public void IsPathSafe_WindowsAbsolutePath_ReturnsFalse()
+    {
+        ImageBuilder.IsPathSafe(@"C:\Windows\System32\config", @"C:\Users\user\docs").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void IsPathSafe_HiddenTraversalWithDotSegment_ReturnsFalse()
+    {
+        // Path that resolves outside the base even though it starts relative
+        ImageBuilder.IsPathSafe("images/../../etc/passwd", "/home/user/docs").ShouldBeFalse();
     }
 }

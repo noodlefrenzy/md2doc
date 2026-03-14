@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml Drawing elements with optional captions", deps: [ParagraphBuilder, DocumentFormat.OpenXml, DocumentFormat.OpenXml.Drawing, DocumentFormat.OpenXml.Drawing.Wordprocessing, DocumentFormat.OpenXml.Drawing.Pictures], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "Builds OpenXml Drawing elements with optional captions", deps: [ParagraphBuilder, DocumentFormat.OpenXml, DocumentFormat.OpenXml.Drawing, DocumentFormat.OpenXml.Drawing.Wordprocessing, DocumentFormat.OpenXml.Drawing.Pictures], state: active, last: "sato@2026-03-14" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -39,17 +39,55 @@ public sealed class ImageBuilder
     /// Embeds an image into the document, returning paragraphs for the image and optional caption.
     /// When altText is non-empty, a styled caption paragraph is appended below the image.
     /// </summary>
-    public IReadOnlyList<Paragraph> BuildImage(MainDocumentPart mainPart, string imagePath, string? altText, ResolvedTheme theme)
+    /// <summary>
+    /// Checks whether an image path is safe to read, given an optional base directory.
+    /// Rejects absolute paths and paths that resolve outside the base directory.
+    /// </summary>
+    public static bool IsPathSafe(string? imagePath, string? baseDirectory)
     {
-        if (!File.Exists(imagePath))
+        if (string.IsNullOrEmpty(imagePath))
+            return false;
+
+        // Reject absolute paths when no base directory is set
+        if (Path.IsPathRooted(imagePath))
+            return false;
+
+        if (string.IsNullOrEmpty(baseDirectory))
+            return false;
+
+        // Resolve full path relative to base directory
+        var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, imagePath));
+        var normalizedBase = Path.GetFullPath(baseDirectory);
+
+        // Ensure trailing separator for prefix check
+        if (!normalizedBase.EndsWith(Path.DirectorySeparatorChar))
+            normalizedBase += Path.DirectorySeparatorChar;
+
+        return fullPath.StartsWith(normalizedBase, StringComparison.Ordinal);
+    }
+
+    public IReadOnlyList<Paragraph> BuildImage(MainDocumentPart mainPart, string imagePath, string? altText, ResolvedTheme theme, string? baseDirectory = null)
+    {
+        // Path traversal check: if a base directory is provided, validate the path
+        if (baseDirectory is not null && !IsPathSafe(imagePath, baseDirectory))
         {
             return new[] { BuildPlaceholder(imagePath) };
         }
 
-        var contentType = GetImageContentType(imagePath);
+        // Resolve relative paths against base directory
+        var resolvedPath = baseDirectory is not null && !Path.IsPathRooted(imagePath)
+            ? Path.GetFullPath(Path.Combine(baseDirectory, imagePath))
+            : imagePath;
+
+        if (!File.Exists(resolvedPath))
+        {
+            return new[] { BuildPlaceholder(imagePath) };
+        }
+
+        var contentType = GetImageContentType(resolvedPath);
         var imagePart = mainPart.AddImagePart(contentType);
 
-        using (var stream = File.OpenRead(imagePath))
+        using (var stream = File.OpenRead(resolvedPath))
         {
             imagePart.FeedData(stream);
         }
@@ -57,7 +95,7 @@ public sealed class ImageBuilder
         var relId = mainPart.GetIdOfPart(imagePart);
 
         // Read image dimensions
-        var (originalWidth, originalHeight) = GetImageDimensions(imagePath);
+        var (originalWidth, originalHeight) = GetImageDimensions(resolvedPath);
 
         // Calculate max dimensions in EMU
         long maxWidthEmu = (long)(theme.PageWidth - theme.MarginLeft - theme.MarginRight) * EmuPerInch / 1440;

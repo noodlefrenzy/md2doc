@@ -1,0 +1,84 @@
+# agent-notes: { ctx: "GitHub Actions release workflow for platform binaries", deps: [src/Md2.Cli/Md2.Cli.csproj], state: active, last: "ines@2026-03-14" }
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: md2-linux-x64
+          - os: windows-latest
+            rid: win-x64
+            artifact: md2-win-x64
+          - os: macos-latest
+            rid: osx-x64
+            artifact: md2-osx-x64
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: md2-osx-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish
+        run: >
+          dotnet publish src/Md2.Cli
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/${{ matrix.artifact }}
+
+      - name: Archive (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: tar -czf ${{ matrix.artifact }}.tar.gz -C publish/${{ matrix.artifact }} .
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path publish/${{ matrix.artifact }}/* -DestinationPath ${{ matrix.artifact }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for dir in artifacts/*/; do
+            for file in "$dir"*; do
+              gh release upload "${{ github.ref_name }}" "$file" --clobber
+            done
+          done

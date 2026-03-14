@@ -46,7 +46,7 @@ public class DocxEmitter : IFormatEmitter
 
             // Walk AST and generate content
             var paragraphBuilder = new ParagraphBuilder(theme);
-            var visitor = new DocxAstVisitor(paragraphBuilder, mainPart, theme);
+            var visitor = new DocxAstVisitor(paragraphBuilder, mainPart, theme, options.InputBaseDirectory);
             var elements = visitor.Visit(doc);
 
             var body = mainPart.Document.Body!;

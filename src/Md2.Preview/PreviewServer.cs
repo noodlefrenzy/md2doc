@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Embedded HTTP server for live HTML preview", deps: [System.Net.Sockets], state: active, last: "sato@2026-03-13" }
+// agent-notes: { ctx: "Embedded HTTP server for live HTML preview", deps: [System.Net.Sockets], state: active, last: "sato@2026-03-14" }
 
 using System.Net;
 using System.Net.Sockets;
@@ -111,13 +111,21 @@ public sealed class PreviewServer : IDisposable
     {
         var statusText = statusCode == 200 ? "OK" : statusCode == 404 ? "Not Found" : "Error";
         var bodyBytes = Encoding.UTF8.GetBytes(body);
-        var header = $"HTTP/1.1 {statusCode} {statusText}\r\nContent-Type: {contentType}; charset=utf-8\r\nContent-Length: {bodyBytes.Length}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
+        var header = $"HTTP/1.1 {statusCode} {statusText}\r\n"
+                   + $"Content-Type: {contentType}; charset=utf-8\r\n"
+                   + $"Content-Length: {bodyBytes.Length}\r\n"
+                   + "Connection: close\r\n"
+                   + "Content-Security-Policy: default-src 'self' https://cdn.jsdelivr.net; script-src https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:\r\n"
+                   + "\r\n";
         var headerBytes = Encoding.ASCII.GetBytes(header);
 
         await stream.WriteAsync(headerBytes);
         await stream.WriteAsync(bodyBytes);
         await stream.FlushAsync();
     }
+
+    /// <summary>Maximum length for an HTTP request line (8 KB). Connections exceeding this are dropped.</summary>
+    internal const int MaxLineLength = 8192;
 
     private static async Task<string?> ReadLineAsync(NetworkStream stream)
     {
@@ -127,6 +135,7 @@ public sealed class PreviewServer : IDisposable
         {
             var c = (char)buffer[0];
             if (c == '\n') return sb.ToString().TrimEnd('\r');
+            if (sb.Length >= MaxLineLength) return null;
             sb.Append(c);
         }
         return sb.Length > 0 ? sb.ToString() : null;

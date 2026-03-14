@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Extracts YAML front matter into DocumentMetadata", deps: [Markdig, YamlDotNet, DocumentMetadata], state: "green", last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Extracts YAML front matter into DocumentMetadata", deps: [Markdig, YamlDotNet, DocumentMetadata], state: "green", last: "sato@2026-03-14" }
 // NOTE: Lives in Md2.Core assembly but uses namespace Md2.Parsing to avoid circular dependency
 // (Md2.Parsing cannot reference Md2.Core, but this class needs DocumentMetadata from Md2.Core.Ast).
 
@@ -29,14 +29,14 @@ public static class FrontMatterExtractor
             return new DocumentMetadata();
         }
 
-        Dictionary<string, object> parsed;
+        Dictionary<string, string> parsed;
         try
         {
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
 
-            parsed = deserializer.Deserialize<Dictionary<string, object>>(yaml)
+            parsed = deserializer.Deserialize<Dictionary<string, string>>(yaml)
                      ?? [];
         }
         catch (YamlException ex)
@@ -52,7 +52,7 @@ public static class FrontMatterExtractor
 
         foreach (var kvp in parsed)
         {
-            var value = kvp.Value?.ToString()?.Trim() ?? string.Empty;
+            var value = kvp.Value?.Trim() ?? string.Empty;
 
             switch (kvp.Key.ToLowerInvariant())
             {
