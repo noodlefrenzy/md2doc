@@ -219,12 +219,12 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Package | Tests | Focus |
 |---------|-------|-------|
 | Md2.Core.Tests | 71 | Pipeline orchestration, transform ordering, warnings |
-| Md2.Parsing.Tests | 43 | Extension coverage, front matter extraction |
-| Md2.Emit.Docx.Tests | 180 | Style application, element construction, contrast handling |
+| Md2.Parsing.Tests | 46 | Extension coverage, front matter extraction, YAML safety |
+| Md2.Emit.Docx.Tests | 187 | Style application, element construction, contrast, path safety |
 | Md2.Themes.Tests | 185 | Theme parsing, cascade resolution, validation, formatting |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 67 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer, theme config |
-| Md2.Preview.Tests | 30 | HTML renderer, server endpoints, file watcher, CSS sanitization |
+| Md2.Preview.Tests | 33 | HTML renderer, server endpoints, file watcher, CSS sanitization, security headers |
 | Md2.Integration.Tests | 86 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
-| **Total** | **719** | |
+| **Total** | **732** | |
