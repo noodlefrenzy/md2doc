@@ -64,7 +64,7 @@ dotnet run --project src/Md2.Cli -- input.md --cover
 # Verbose output (shows cascade resolution, timing, stack traces)
 dotnet run --project src/Md2.Cli -- input.md -v
 
-# Quiet mode (suppress output path)
+# Quiet mode (suppress warnings)
 dotnet run --project src/Md2.Cli -- input.md -q
 ```
 

@@ -1,4 +1,4 @@
-<!-- agent-notes: { ctx: "session handoff for wave-based sprint execution", deps: [CLAUDE.md, docs/sprints/, docs/code-map.md], state: active, last: "coordinator@2026-02-15" } -->
+<!-- agent-notes: { ctx: "session handoff for wave-based sprint execution", deps: [CLAUDE.md, docs/sprints/, docs/code-map.md], state: active, last: "grace@2026-03-14" } -->
 Create a session handoff document so the next session can pick up where this one left off.
 
 ## Steps
@@ -77,9 +77,15 @@ Create a session handoff document so the next session can pick up where this one
 - <gotchas discovered during this session>
 ```
 
-7. **Update MEMORY.md.** Ensure the session memory file has current sprint status and any new patterns discovered.
+7. **Board status verification.** Before writing the handoff, verify all completed issues are at the correct board status:
+   - Issues completed this session must be at **Done** on the project board.
+   - Issues moved to In Review must be at **In Review**.
+   - If any board statuses are stale, update them now. Do not leave this for the next session.
+   - Note: `Closes #N` in commit messages closes the GitHub issue but does NOT update the project board status field. Board status must be updated explicitly.
 
-8. **Commit the handoff.** If there are uncommitted changes, ask the user if they want to commit before creating the handoff. Then commit the handoff file itself.
+8. **Update MEMORY.md.** Ensure the session memory file has current sprint status and any new patterns discovered.
+
+9. **Commit the handoff.** If there are uncommitted changes, ask the user if they want to commit before creating the handoff. Then commit the handoff file itself.
 
 ## Important
 

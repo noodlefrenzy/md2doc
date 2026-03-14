@@ -2,8 +2,8 @@
 agent-notes:
   ctx: "Sprint 11 plan — Release Preparation"
   deps: [CLAUDE.md, docs/retrospectives/2026-03-13-sprint-10-retro.md]
-  state: active
-  last: "grace@2026-03-13"
+  state: complete
+  last: "grace@2026-03-14"
 ---
 # Sprint 11 Plan — Release Preparation
 

@@ -3,7 +3,7 @@ agent-notes:
   ctx: "codebase structural overview for humans and agents"
   deps: [docs/architecture.md]
   state: active
-  last: "sato@2026-03-13"
+  last: "grace@2026-03-14"
   key: ["UPDATE when adding packages, modules, or changing public APIs"]
 ---
 # Code Map
@@ -220,11 +220,11 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 |---------|-------|-------|
 | Md2.Core.Tests | 71 | Pipeline orchestration, transform ordering, warnings |
 | Md2.Parsing.Tests | 43 | Extension coverage, front matter extraction |
-| Md2.Emit.Docx.Tests | 176 | Style application, element construction |
-| Md2.Themes.Tests | 152 | Theme parsing, cascade resolution, validation, formatting |
+| Md2.Emit.Docx.Tests | 180 | Style application, element construction, contrast handling |
+| Md2.Themes.Tests | 185 | Theme parsing, cascade resolution, validation, formatting |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
-| Md2.Diagrams.Tests | 26 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer |
+| Md2.Diagrams.Tests | 67 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer, theme config |
 | Md2.Preview.Tests | 30 | HTML renderer, server endpoints, file watcher, CSS sanitization |
-| Md2.Integration.Tests | 76 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
-| **Total** | **591** | |
+| Md2.Integration.Tests | 86 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
+| **Total** | **719** | |
