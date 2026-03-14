@@ -1,4 +1,4 @@
-<!-- agent-notes: { ctx: "public-facing README for md2doc", deps: [CLAUDE.md, docs/code-map.md], state: active, last: "diego@2026-03-12" } -->
+<!-- agent-notes: { ctx: "public-facing README for md2doc", deps: [CLAUDE.md, docs/code-map.md], state: active, last: "diego@2026-03-14" } -->
 
 # md2
 
@@ -19,6 +19,9 @@ A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture 
 - **Front matter** — YAML metadata (title, author, date) flows into document properties
 - **Page layout** — configurable margins, page size, page numbers in footer, widow/orphan control
 - **Theme engine** — YAML theme DSL with 4-layer cascade (CLI > theme > preset > template), built-in presets, schema validation
+- **Live preview** — hot-reloading HTML preview with theme support
+- **Table of contents** — auto-generated from headings with configurable depth
+- **Cover pages** — generated from front matter metadata
 
 ## Prerequisites
 
@@ -49,20 +52,68 @@ dotnet run --project src/Md2.Cli -- input.md --style colors.primary=FF0000 --sty
 # Use a custom theme YAML
 dotnet run --project src/Md2.Cli -- input.md --theme mytheme.yaml
 
+# Use a DOCX template for base styling
+dotnet run --project src/Md2.Cli -- input.md --template corporate.docx
+
+# Include a table of contents
+dotnet run --project src/Md2.Cli -- input.md --toc --toc-depth 2
+
+# Include a cover page from front matter metadata
+dotnet run --project src/Md2.Cli -- input.md --cover
+
 # Verbose output (shows cascade resolution, timing, stack traces)
 dotnet run --project src/Md2.Cli -- input.md -v
 
 # Quiet mode (suppress output path)
 dotnet run --project src/Md2.Cli -- input.md -q
-
-# Inspect theme cascade resolution
-dotnet run --project src/Md2.Cli -- theme resolve --preset default
 ```
 
 The output path is printed to stdout, so you can pipe it:
 
 ```bash
 open "$(dotnet run --project src/Md2.Cli -- notes.md)"
+```
+
+### Preview
+
+Open a live HTML preview with hot-reloading. Watches the source file for changes and refreshes automatically.
+
+```bash
+# Live preview in browser
+dotnet run --project src/Md2.Cli -- preview input.md
+
+# Preview with a specific theme
+dotnet run --project src/Md2.Cli -- preview input.md --preset modern
+
+# Start server without opening browser (useful with port forwarding)
+dotnet run --project src/Md2.Cli -- preview input.md --no-browser
+```
+
+### Doctor
+
+Check that the md2 environment and dependencies are properly configured.
+
+```bash
+dotnet run --project src/Md2.Cli -- doctor
+```
+
+### Theme Commands
+
+```bash
+# List available presets
+dotnet run --project src/Md2.Cli -- theme list
+
+# Inspect resolved theme with cascade layer attribution
+dotnet run --project src/Md2.Cli -- theme resolve --preset modern
+
+# Resolve with all cascade layers
+dotnet run --project src/Md2.Cli -- theme resolve --preset default --theme overrides.yaml --style colors.primary=FF0000
+
+# Validate a theme YAML file
+dotnet run --project src/Md2.Cli -- theme validate mytheme.yaml
+
+# Extract styles from a DOCX template into a theme YAML
+dotnet run --project src/Md2.Cli -- theme extract corporate.docx -o extracted.yaml
 ```
 
 ## Example
@@ -118,6 +169,7 @@ src/
   Md2.Themes/       — YAML theme DSL, cascade resolver, presets
   Md2.Diagrams/     — Mermaid diagram rendering (Playwright)
   Md2.Math/         — LaTeX math to OMML conversion
+  Md2.Preview/      — Live HTML preview server with hot-reload
 tests/
   Md2.Core.Tests/
   Md2.Parsing.Tests/
@@ -126,6 +178,7 @@ tests/
   Md2.Highlight.Tests/
   Md2.Diagrams.Tests/
   Md2.Math.Tests/
+  Md2.Preview.Tests/
   Md2.Integration.Tests/
 ```
 
