@@ -13,8 +13,10 @@ Thanks for your interest in contributing! This guide will help you get started.
 ### Setup
 
 ```bash
-git clone https://github.com/noodlefrenzy/md2doc.git
+# Fork the repo on GitHub first, then:
+git clone https://github.com/<your-username>/md2doc.git
 cd md2doc
+git remote add upstream https://github.com/noodlefrenzy/md2doc.git
 dotnet build
 dotnet test
 ```
@@ -50,20 +52,27 @@ Open an issue describing:
 
 ### Submitting Code
 
-1. **Fork** the repository and create a branch from `main`.
-2. **Write tests** for any new functionality. We use [Shouldly](https://shouldly.org/) for assertions.
-3. **Run the full test suite** before submitting:
+We use a **fork-and-PR** workflow. Outside contributors do not get push access to the main repo.
+
+1. **Fork** the repository on GitHub if you haven't already.
+2. **Create a feature branch** from `main`:
+   ```bash
+   git fetch upstream
+   git checkout -b feat/my-change upstream/main
+   ```
+3. **Write tests** for any new functionality. We use [Shouldly](https://shouldly.org/) for assertions.
+4. **Run the full test suite** before submitting:
    ```bash
    dotnet test
    ```
-4. **Follow existing code style** — the codebase uses standard C# conventions.
-5. **Keep commits focused** — one logical change per commit, using [conventional commits](https://www.conventionalcommits.org/) format:
+5. **Follow existing code style** — the codebase uses standard C# conventions.
+6. **Keep commits focused** — one logical change per commit, using [conventional commits](https://www.conventionalcommits.org/) format:
    ```
    feat: add PPTX table support
    fix: handle empty code blocks without crashing
    docs: clarify theme cascade order
    ```
-6. **Open a pull request** against `main` with a clear description of what changed and why.
+7. **Push to your fork** and **open a pull request** against `main` with a clear description of what changed and why.
 
 ## Project Structure
 
