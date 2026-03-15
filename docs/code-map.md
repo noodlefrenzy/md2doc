@@ -39,7 +39,7 @@ ResolvedTheme  (4-layer cascade: CLI > YAML > preset > template)
   |
   v
 [Md2.Emit.Docx]   Open XML SDK -> .docx
-[Md2.Emit.Pptx]   Open XML SDK -> .pptx  (v2, stubbed)
+[Md2.Emit.Pptx]   Open XML SDK -> .pptx  (v2)
   |
   v
 Output file (.docx / .pptx)
@@ -154,11 +154,13 @@ Md2.Cli ─────────────── entry point, System.Comman
 
 ### Md2.Emit.Pptx -- PPTX Emitter (v2)
 
-**Purpose:** Produces Open XML PresentationDocument from SlideDocument with theme-based styling.
+**Purpose:** Produces Open XML PresentationDocument from SlideDocument with theme-based styling. Includes native Mermaid shapes and editable charts.
 
 | Area | Key Types | Notes |
 |------|----------|-------|
-| Emitter | `PptxEmitter : ISlideEmitter` | Full content types: headings, paragraphs, lists, tables, code blocks, blockquotes, hyperlinks, images, headers/footers, slide numbers, build animations |
+| Emitter | `PptxEmitter : ISlideEmitter` | Full content types: headings, paragraphs, lists, tables, code blocks, blockquotes, hyperlinks, images, headers/footers, slide numbers, build animations, Mermaid shapes, charts |
+| Mermaid | `MermaidFlowchartParser`, `FlowchartGraph` | Parse Mermaid flowchart syntax → native shapes with topological layout |
+| Charts | `ChartDataParser`, `ChartData` | Parse YAML/CSV chart data → native PPTX charts (bar, column, line, pie) |
 
 **External deps:** DocumentFormat.OpenXml
 
@@ -254,12 +256,12 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Md2.Core.Tests | 134 | Pipeline orchestration, transform ordering, SlideDocument IR, SlidePipeline, warnings |
 | Md2.Parsing.Tests | 46 | Extension coverage, front matter extraction, YAML safety |
 | Md2.Emit.Docx.Tests | 187 | Style application, element construction, contrast, path safety |
-| Md2.Emit.Pptx.Tests | 22 | PPTX emission, slide count, speaker notes, metadata, theme backgrounds, fit headings, layout colors, tables, blockquotes, code blocks, hyperlinks, build animations, slide numbers |
+| Md2.Emit.Pptx.Tests | 65 | PPTX emission, slide count, speaker notes, metadata, theme backgrounds, fit headings, layout colors, tables, blockquotes, code blocks, hyperlinks, build animations, slide numbers, Mermaid flowchart shapes, chart embedding, image fallback |
 | Md2.Slides.Tests | 135 | Directive extraction/classification/cascade, slide splitting, image syntax, extensions, layout inference, MarpParser, theme mapping |
 | Md2.Themes.Tests | 213 | Theme parsing, cascade resolution, validation, formatting, PPTX section/cascade/validation |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 67 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer, theme config |
 | Md2.Preview.Tests | 33 | HTML renderer, server endpoints, file watcher, CSS sanitization, security headers |
-| Md2.Integration.Tests | 86 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
-| **Total** | **980** | |
+| Md2.Integration.Tests | 102 | End-to-end pipeline (DOCX + PPTX), composition, doctor, comprehensive doc, preview command, PPTX charts/Mermaid/themes |
+| **Total** | **953** | |

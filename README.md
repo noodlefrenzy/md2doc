@@ -1,7 +1,7 @@
 
 # md2
 
-A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture with AST transforms, syntax highlighting, Mermaid diagrams, and LaTeX math.
+A CLI toolkit that converts Markdown to polished **DOCX** and **PPTX** files. Pipeline architecture with AST transforms, syntax highlighting, Mermaid diagrams, LaTeX math, and a YAML theme DSL.
 
 ![md2 output — styled table with header formatting, alternating rows, and colored warning callout (nightowl theme)](docs/media/hero-nightowl-tables.png)
 
@@ -26,6 +26,26 @@ A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture 
 - **Table of contents** — auto-generated from headings with configurable depth
 - **Cover pages** — generated from front matter metadata
 
+### PPTX Output (v2)
+
+- **MARP-compatible input** — write slides in standard [MARP](https://marp.app/) Markdown syntax
+- **Slide layouts** — title, content, section-divider, two-column, blank (auto-inferred from content)
+- **Theme integration** — shared theme DSL with `pptx:` section for PPTX-specific styling
+- **Speaker notes** — preserved from MARP `<!-- notes -->` syntax
+- **Headers/footers** — from MARP `header`/`footer` directives
+- **Slide numbers** — via `paginate: true` directive
+- **Native tables** — theme-styled with header rows and alternating shading
+- **Code blocks** — with background fill, border, padding
+- **Build animations** — click-to-reveal bullet lists via `<!-- md2: { build: "bullets" } -->`
+- **Background images** — `![bg cover](image.jpg)` with path safety
+- **Inline images** — aspect-ratio scaling with PNG/JPEG dimension reading
+- **Blockquotes** — styled with italic text and left border bar
+- **Hyperlinks** — clickable links in PPTX text
+- **Native Mermaid flowcharts** — flowchart/graph diagrams rendered as editable PPTX shapes
+- **Mermaid image fallback** — complex diagrams (sequence, Gantt, ER) fall back to PNG
+- **Native PPTX charts** — bar, column, line, pie charts from `chart` code fences (editable in PowerPoint)
+- **Fit headings** — `<!-- fit -->` auto-scale headings
+
 ## Prerequisites
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
@@ -45,6 +65,9 @@ dotnet run --project src/Md2.Cli -- input.md
 
 # Specify output path
 dotnet run --project src/Md2.Cli -- input.md -o report.docx
+
+# Convert MARP slides to PPTX (auto-detected from .pptx extension)
+dotnet run --project src/Md2.Cli -- slides.md -o slides.pptx
 
 # Use a theme preset
 dotnet run --project src/Md2.Cli -- input.md --preset default
@@ -168,6 +191,8 @@ src/
   Md2.Core/         — Pipeline orchestration, transforms, shared types
   Md2.Parsing/      — Markdig configuration and extensions
   Md2.Emit.Docx/    — DOCX emitter (Open XML SDK)
+  Md2.Emit.Pptx/    — PPTX emitter with native charts and Mermaid shapes
+  Md2.Slides/       — MARP parser (directives, slide splitting, layout inference)
   Md2.Highlight/    — Syntax highlighting (TextMateSharp)
   Md2.Themes/       — YAML theme DSL, cascade resolver, presets
   Md2.Diagrams/     — Mermaid diagram rendering (Playwright)
@@ -177,6 +202,8 @@ tests/
   Md2.Core.Tests/
   Md2.Parsing.Tests/
   Md2.Emit.Docx.Tests/
+  Md2.Emit.Pptx.Tests/
+  Md2.Slides.Tests/
   Md2.Themes.Tests/
   Md2.Highlight.Tests/
   Md2.Diagrams.Tests/
