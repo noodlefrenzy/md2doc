@@ -1,9 +1,9 @@
 ---
 agent-notes:
   ctx: "technical debt register, persists across sprints"
-  deps: [docs/plans/v1-implementation-plan.md]
+  deps: [docs/plans/v1-implementation-plan.md, docs/plans/v2-pptx-implementation-plan.md]
   state: active
-  last: "grace@2026-03-14"
+  last: "grace@2026-03-15"
   key: ["Grace tracks, Pat prioritizes against features", "3+ sprint debt auto-escalated to P0"]
 ---
 # Technical Debt Register
@@ -35,6 +35,10 @@ These are known shortcuts planned in the implementation. They are not yet incurr
 | TD-A01 | Default preset authored as in-memory hardcoded values before YAML engine exists | Hardcoded values | Sprint 2 | Sprint 6 | Replaced when PresetRegistry loads YAML files |
 | TD-A02 | Math graceful degradation renders LaTeX as code span (not a styled "math unavailable" placeholder) | Missing polish | Sprint 5 | Post-v1 | Acceptable for v1; code fallback is clear |
 | TD-A03 | Preview HTML is an approximation of DOCX output, not pixel-perfect | Missing polish | Sprint 8 | Ongoing | By design; accepted trade-off |
+| TD-A04 | PPTX template extraction deferred — preset-only theming | Missing feature | v2 Sprint 1 | Post-v2 | Wei debate: extraction complexity rivals emitter itself. Ship with presets first. |
+| TD-A05 | PPTX preview not supported — preview remains DOCX-only | Missing feature | v2 Sprint 1 | Post-v2 | Scoped out of v2 per ADR-0016 non-goals. |
+| TD-A06 | Two parallel pipelines (ConversionPipeline + SlidePipeline) | Architecture duplication | v2 Sprint 1 | Ongoing | Accepted per ADR-0014 Wei debate. May unify post-v2 if patterns converge. |
+| TD-A07 | MARP image filters (blur, brightness, sepia) not mapped to PPTX | Missing feature | v2 Sprint 2 | Post-v2 | PPTX artistic effects are limited; accepted gap. |
 
 ## Resolved Debt
 

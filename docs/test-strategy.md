@@ -1,10 +1,10 @@
 ---
 agent-notes:
-  ctx: "test strategy, pyramid, DOCX assertion patterns, coverage"
-  deps: [docs/architecture.md, docs/plans/acceptance-criteria-v1.md, docs/code-map.md]
+  ctx: "test strategy, pyramid, DOCX+PPTX assertion patterns, coverage"
+  deps: [docs/architecture.md, docs/plans/acceptance-criteria-v1.md, docs/plans/v2-pptx-implementation-plan.md, docs/code-map.md]
   state: active
-  last: "tara@2026-03-11"
-  key: ["Tara owns", "112 ACs across 9 test projects", "Shouldly for assertions"]
+  last: "tara@2026-03-15"
+  key: ["Tara owns", "112 ACs across 9 test projects", "Shouldly for assertions", "PPTX test projects added in v2"]
 ---
 
 # Test Strategy -- md2 v1
@@ -1443,3 +1443,103 @@ Common conversions needed when writing DOCX assertions:
 | Border width | Eighths of a point | 0.5pt = 4 |
 
 These conversions will be centralized as constants in `Md2.TestUtilities.OpenXmlConstants`.
+
+---
+
+## Appendix C: PPTX Test Strategy (v2)
+
+Added for the PPTX/MARP pipeline (ADRs 0014-0016). Same principles as v1; this appendix covers PPTX-specific concerns.
+
+### C.1 New Test Projects
+
+| Project | Focus | Category |
+|---------|-------|----------|
+| `Md2.Slides.Tests` | MARP parser, directive extraction/classification/cascading, slide extraction, image syntax, layout inference, fragmented list detection | Unit |
+| `Md2.Emit.Pptx.Tests` | PPTX emitter, slide master generation, shape builders, table builder, chart builder, style application | Unit + Integration |
+
+### C.2 PPTX Assertion Patterns
+
+PPTX files use `PresentationDocument` (Open XML SDK). Assertions follow the same pattern as DOCX: convert → open → inspect XML.
+
+```csharp
+// Convert MARP deck to PPTX, open result, inspect slides
+using var stream = new MemoryStream();
+await pipeline.Emit(slideDoc, theme, pptxEmitter, options, stream);
+stream.Position = 0;
+using var pptx = PresentationDocument.Open(stream, false);
+
+var slidePart = pptx.PresentationPart!.SlideParts.First();
+var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!
+    .Elements<DocumentFormat.OpenXml.Presentation.Shape>();
+
+// Assert text content
+var textBody = shapes.First().TextBody!;
+textBody.Paragraphs().First().InnerText.ShouldBe("Expected heading");
+
+// Assert font size (hundredths of a point in PPTX)
+var runProps = textBody.Paragraphs().First()
+    .Elements<Run>().First().RunProperties!;
+runProps.FontSize!.Value.ShouldBe(4400); // 44pt = 4400 hundredths
+```
+
+### C.3 PPTX-Specific Unit Conversions
+
+| What | Open XML Unit | Conversion |
+|------|---------------|------------|
+| Font size | Hundredths of a point (int) | 44pt = 4400 |
+| Slide width/height | EMU | 16:9 = 12192000 x 6858000 EMU |
+| Shape position/size | EMU | 1 inch = 914400 EMU |
+| Colors | Hex string (same as DOCX) | `1B3A5C` |
+| Margins/padding | EMU | 0.5 inch = 457200 EMU |
+| Bullet indent | EMU per level | Varies by theme |
+
+### C.4 MARP Parser Test Matrix
+
+Tests must cover the MARP compatibility scope from ADR-0015:
+
+| Feature | Test Count (min) | Notes |
+|---------|-----------------|-------|
+| `---` slide separation | 5 | Basic, consecutive, with content between |
+| `headingDivider` | 3 | Level 1, level 2, array of levels |
+| Global directives | 8 | Each supported directive |
+| Local directive propagation | 3 | Propagates forward, overridden by next |
+| Scoped `_` directives | 5 | Each scoped directive, single-slide only |
+| Speaker notes | 3 | Single, multiple per slide, empty |
+| `<!-- fit -->` | 2 | Applied, not applied |
+| Image sizing (`w:`, `h:`) | 4 | px, %, both, missing |
+| Background images (`bg`) | 5 | cover, contain, fit, left:N%, right:N% |
+| Fragmented lists | 3 | `*` vs `-`, mixed, ordered `1)` vs `1.` |
+| `<!-- md2: -->` extensions | 5 | build, layout, footer, chart, invalid |
+| Layout inference | 5 | Title, Content, TwoColumn, SectionDivider, custom |
+| Unsupported features | 3 | CSS theme, `@import`, inline `<style>` → warning |
+
+### C.5 PPTX Emitter Test Matrix
+
+| Feature | Test Count (min) | Notes |
+|---------|-----------------|-------|
+| Basic text slide | 3 | Heading + body, body only, heading only |
+| Slide masters/layouts | 5 | One per layout type |
+| Theme application | 5 | Fonts, colors, sizes, background, chart palette |
+| Native tables | 4 | Basic, styled headers, merged cells, alignment |
+| Code blocks | 3 | Highlighted, plain, long code |
+| Build animations | 3 | Bullets, no animation, mixed |
+| Speaker notes | 2 | Present, absent |
+| Headers/footers | 5 | Text, images, left/center/right, slide numbers, scoped override |
+| Hyperlinks | 2 | Internal, external |
+| Inline images | 3 | Sized, unsized, background |
+| Mermaid native shapes | 4 | Flowchart basic, styled, connectors, fallback to image |
+| Native charts | 4 | Bar, line, pie, with palette |
+| Cross-app validation | 3 | Valid OOXML, no orphan rels, no duplicate IDs |
+
+### C.6 Visual Regression (PPTX)
+
+Same approach as DOCX visual regression: convert a reference MARP deck with each preset, compare slide style properties against baseline snapshots. Gated behind `VISUAL_REGRESSION=1`.
+
+### C.7 Performance Tests (PPTX)
+
+| Test | Budget | Notes |
+|------|--------|-------|
+| Simple 10-slide deck conversion | < 3 seconds | No Mermaid/math |
+| 50-slide deck with code/tables | < 10 seconds | Excludes Mermaid |
+| Mermaid flowchart → native shapes | < 2 seconds per diagram | Warm Playwright |
+| Chart generation | < 1 second per chart | No external deps |

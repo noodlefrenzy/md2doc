@@ -9,7 +9,9 @@
 
 **Codebase map:** `docs/code-map.md` — read this first to understand the package structure, public APIs, and data flow.
 
-## GitHub Board
+## GitHub Boards
+
+### md2 v1 (DOCX)
 
 **Project:** md2 v1
 **Number:** 14
@@ -26,6 +28,26 @@
 | In Progress | `fbf70cdb` |
 | In Review | `3b24bdf4` |
 | Done | `b997f658` |
+
+### md2 v2 (PPTX)
+
+**Project:** md2 v2 — PPTX
+**Number:** 15
+**Owner:** noodlefrenzy
+**URL:** https://github.com/users/noodlefrenzy/projects/15
+
+**Status Field ID:** `PVTSSF_lAHOAAxp6M4BRyFazg_gkR8`
+**Project Node ID:** `PVT_kwHOAAxp6M4BRyFa`
+
+| Status | Option ID |
+|--------|-----------|
+| Backlog | `1f2b04da` |
+| Ready | `d85b5ec5` |
+| In Progress | `499b9ac4` |
+| In Review | `b3c99bdb` |
+| Done | `21923d1c` |
+
+**Branch strategy:** `pptx/v2` integration branch. Feature branches off `pptx/v2`. Periodic `main` → `pptx/v2` merges. Final PR to `main` when v2.0 ships.
 
 ## Agent-Notes Protocol (MANDATORY)
 
