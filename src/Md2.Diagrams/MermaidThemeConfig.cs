@@ -28,12 +28,10 @@ public class MermaidThemeConfig
     /// </summary>
     public static MermaidThemeConfig FromResolvedTheme(ResolvedTheme theme)
     {
-        var primaryTextColor = theme.TableHeaderForeground;
-        // Auto-derive contrast if primary color is extreme
-        if (string.IsNullOrEmpty(primaryTextColor) || primaryTextColor == "FFFFFF")
-        {
-            primaryTextColor = DeriveContrastTextColor(theme.PrimaryColor);
-        }
+        // Always derive text color for contrast against node backgrounds (PrimaryColor).
+        // Using theme.TableHeaderForeground here caused green-on-green in dark themes
+        // like hackterm where both the node background and header text are the same color.
+        var primaryTextColor = DeriveContrastTextColor(theme.PrimaryColor);
 
         var fontFamily = theme.HeadingFont;
         if (!fontFamily.Contains("sans-serif", StringComparison.OrdinalIgnoreCase))
