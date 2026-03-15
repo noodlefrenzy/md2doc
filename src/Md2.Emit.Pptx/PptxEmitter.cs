@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Basic PPTX emitter: slides with text content only", deps: [DocumentFormat.OpenXml, Md2.Core.Slides, Md2.Core.Emit, Markdig], state: active, last: "sato@2026-03-15" }
+// agent-notes: { ctx: "PPTX emitter with theme-based layouts, backgrounds, and fit headings", deps: [DocumentFormat.OpenXml, Md2.Core.Slides, Md2.Core.Emit, Md2.Core.Pipeline, Markdig], state: active, last: "sato@2026-03-15" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -14,16 +14,12 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace Md2.Emit.Pptx;
 
 /// <summary>
-/// Basic PPTX emitter that creates slides with text content.
-/// Sprint 2 scope: text only, minimal styling. Theme-based styling comes in Sprint 3.
+/// PPTX emitter with theme-based slide layouts, backgrounds, and font sizing.
+/// Uses ResolvedTheme.Pptx sub-object for PPTX-specific styling per ADR-0016.
 /// </summary>
 public class PptxEmitter : ISlideEmitter
 {
     public string FormatName => "pptx";
-
-    // Standard widescreen 16:9 dimensions in EMUs
-    private const long SlideWidth = 12192000L; // 13.333"
-    private const long SlideHeight = 6858000L; // 7.5"
 
     public async Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output)
     {
@@ -44,12 +40,11 @@ public class PptxEmitter : ISlideEmitter
 
     private static void CreatePresentationStructure(PresentationDocument presentationDoc, SlideDocument doc, ResolvedTheme theme)
     {
-        // Create presentation part
         var presentationPart = presentationDoc.AddPresentationPart();
         presentationPart.Presentation = new Presentation();
 
-        // Set slide size
-        var slideSize = doc.Metadata.Size;
+        // Use PPTX theme slide size, falling back to document metadata, then default
+        var slideSize = theme.Pptx?.SlideSize ?? doc.Metadata.Size;
         presentationPart.Presentation.SlideSize = new P.SlideSize
         {
             Cx = (int)slideSize.Width,
@@ -59,19 +54,17 @@ public class PptxEmitter : ISlideEmitter
 
         // Create slide master and layout
         var slideMasterPart = presentationPart.AddNewPart<SlideMasterPart>("rId1");
-        slideMasterPart.SlideMaster = CreateSlideMaster();
+        slideMasterPart.SlideMaster = CreateSlideMaster(theme);
 
         var slideLayoutPart = slideMasterPart.AddNewPart<SlideLayoutPart>("rId1");
         slideLayoutPart.SlideLayout = CreateSlideLayout();
-
-        // Link layout back to master
         slideLayoutPart.SlideLayout.Append(new CommonSlideData(new ShapeTree()));
 
-        // Create slide ID list
+        // Slide ID list
         var slideIdList = new SlideIdList();
         presentationPart.Presentation.SlideIdList = slideIdList;
 
-        // Create slide master ID list
+        // Slide master ID list
         var slideMasterIdList = new SlideMasterIdList();
         slideMasterIdList.Append(new SlideMasterId { Id = 2147483648U, RelationshipId = "rId1" });
         presentationPart.Presentation.SlideMasterIdList = slideMasterIdList;
@@ -85,19 +78,16 @@ public class PptxEmitter : ISlideEmitter
             var relationshipId = $"rId{slideIndex + 1}";
             var slidePart = presentationPart.AddNewPart<SlidePart>(relationshipId);
 
-            CreateSlide(slidePart, slide, theme, slideLayoutPart);
+            CreateSlide(slidePart, slide, theme, slideLayoutPart, slideSize);
 
-            // Add speaker notes if present
             if (!string.IsNullOrEmpty(slide.SpeakerNotes))
-            {
                 CreateSpeakerNotes(slidePart, slide.SpeakerNotes);
-            }
 
             slideIdList.Append(new SlideId { Id = slideId++, RelationshipId = relationshipId });
             slideIndex++;
         }
 
-        // Set document properties
+        // Document properties
         if (presentationDoc.PackageProperties != null)
         {
             if (!string.IsNullOrEmpty(doc.Metadata.Title))
@@ -107,7 +97,8 @@ public class PptxEmitter : ISlideEmitter
         }
     }
 
-    private static void CreateSlide(SlidePart slidePart, Md2.Core.Slides.Slide slide, ResolvedTheme theme, SlideLayoutPart layoutPart)
+    private static void CreateSlide(SlidePart slidePart, Md2.Core.Slides.Slide slide, ResolvedTheme theme,
+        SlideLayoutPart layoutPart, Md2.Core.Slides.SlideSize slideSize)
     {
         slidePart.AddPart(layoutPart, "rId1");
 
@@ -125,46 +116,64 @@ public class PptxEmitter : ISlideEmitter
                             new A.ChildOffset { X = 0L, Y = 0L },
                             new A.ChildExtents { Cx = 0L, Cy = 0L })))));
 
+        // Apply background color (per-slide directive > per-layout theme > default theme background)
+        var bgColor = ResolveBackgroundColor(slide, theme);
+        if (bgColor != null)
+        {
+            slideElement.CommonSlideData!.Background = new Background(
+                new BackgroundProperties(
+                    new A.SolidFill(new A.RgbColorModelHex { Val = bgColor })));
+        }
+
         var shapeTree = slideElement.CommonSlideData!.ShapeTree!;
         uint shapeId = 2;
 
+        var pptx = theme.Pptx;
+        long slideWidth = slideSize.Width;
+
         // Walk the Markdig AST and create text shapes
         long currentY = 457200L; // Start 0.5" from top
-        const long leftMargin = 457200L; // 0.5" from left
-        const long rightMargin = 457200L; // 0.5" from right
-        long contentWidth = SlideWidth - leftMargin - rightMargin;
+        const long leftMargin = 457200L;
+        const long rightMargin = 457200L;
+        long contentWidth = slideWidth - leftMargin - rightMargin;
 
         foreach (var block in slide.Content)
         {
             if (block is HeadingBlock heading)
             {
-                var text = GetInlineText(heading.Inline);
+                var (text, isFit) = GetInlineTextWithFit(heading.Inline);
                 var fontSize = GetHeadingFontSize(heading.Level, theme);
-                var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth, fontSize, true, theme);
+                var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth,
+                    fontSize, true, theme, fitText: isFit);
                 shapeTree.Append(shape);
-                currentY += (long)(fontSize * 2000); // Approximate height
+                currentY += (long)(fontSize * 2000);
             }
             else if (block is ParagraphBlock paragraph)
             {
                 var text = GetInlineText(paragraph.Inline);
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    var fontSize = (int)(theme.BaseFontSize * 100); // Convert pt to hundredths
-                    var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth, fontSize, false, theme);
+                    var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
+                    var fontSize = (int)(baseFontPt * 100);
+                    var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth,
+                        fontSize, false, theme);
                     shapeTree.Append(shape);
                     currentY += (long)(fontSize * 1500);
                 }
             }
             else if (block is ListBlock list)
             {
+                var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
+                var bulletIndentEmu = (long)((pptx?.Content.BulletIndent ?? 36.0) * 12700); // pt to EMU
                 var orderedIndex = int.TryParse(list.OrderedStart, out var start) ? start : 1;
                 foreach (var item in list.OfType<ListItemBlock>())
                 {
                     var itemText = GetListItemText(item);
                     var bullet = list.IsOrdered ? $"{orderedIndex++}. " : "\u2022 ";
-                    var fontSize = (int)(theme.BaseFontSize * 100);
+                    var fontSize = (int)(baseFontPt * 100);
                     var shape = CreateTextShape(shapeId++, bullet + itemText,
-                        leftMargin + 457200L, currentY, contentWidth - 457200L, fontSize, false, theme);
+                        leftMargin + bulletIndentEmu, currentY,
+                        contentWidth - bulletIndentEmu, fontSize, false, theme);
                     shapeTree.Append(shape);
                     currentY += (long)(fontSize * 1200);
                 }
@@ -172,8 +181,10 @@ public class PptxEmitter : ISlideEmitter
             else if (block is FencedCodeBlock codeBlock)
             {
                 var code = codeBlock.Lines.ToString();
-                var fontSize = (int)(theme.BaseFontSize * 0.85 * 100);
-                var shape = CreateTextShape(shapeId++, code, leftMargin, currentY, contentWidth, fontSize, false, theme, isCode: true);
+                var codeFontPt = pptx?.CodeBlock.FontSize ?? (theme.BaseFontSize * 0.85);
+                var fontSize = (int)(codeFontPt * 100);
+                var shape = CreateTextShape(shapeId++, code, leftMargin, currentY, contentWidth,
+                    fontSize, false, theme, isCode: true);
                 shapeTree.Append(shape);
                 currentY += (long)(fontSize * 1500);
             }
@@ -182,11 +193,47 @@ public class PptxEmitter : ISlideEmitter
         slidePart.Slide = slideElement;
     }
 
+    /// <summary>
+    /// Resolves the background color for a slide. Precedence:
+    /// 1. Per-slide directive (slide.Directives.BackgroundColor)
+    /// 2. Per-layout theme background (theme.Pptx.TitleSlide.BackgroundColor etc.)
+    /// 3. Default theme background (theme.Pptx.BackgroundColor)
+    /// Returns null if no background should be set (transparent/white default).
+    /// </summary>
+    private static string? ResolveBackgroundColor(Md2.Core.Slides.Slide slide, ResolvedTheme theme)
+    {
+        // Per-slide directive overrides everything
+        if (!string.IsNullOrEmpty(slide.Directives.BackgroundColor))
+            return slide.Directives.BackgroundColor.TrimStart('#');
+
+        var pptx = theme.Pptx;
+        if (pptx == null)
+            return null;
+
+        // Per-layout background
+        var layoutBg = slide.Layout.Name switch
+        {
+            "title" => pptx.TitleSlide.BackgroundColor,
+            "section-divider" => pptx.SectionDivider.BackgroundColor,
+            _ => null
+        };
+
+        if (layoutBg != null)
+            return layoutBg.TrimStart('#');
+
+        // Default theme background (skip FFFFFF to avoid unnecessary background element)
+        var defaultBg = pptx.BackgroundColor;
+        if (defaultBg != null && !string.Equals(defaultBg, "FFFFFF", StringComparison.OrdinalIgnoreCase))
+            return defaultBg.TrimStart('#');
+
+        return null;
+    }
+
     private static P.Shape CreateTextShape(
         uint shapeId, string text,
         long x, long y, long width,
         int fontSizeHundredths, bool isBold,
-        ResolvedTheme theme, bool isCode = false)
+        ResolvedTheme theme, bool isCode = false, bool fitText = false)
     {
         var fontName = isCode ? (theme.MonoFont ?? "Consolas") : (theme.BodyFont ?? "Calibri");
         if (isBold)
@@ -195,8 +242,8 @@ public class PptxEmitter : ISlideEmitter
         var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths, Bold = isBold };
         runProperties.Append(new A.LatinFont { Typeface = fontName });
 
-        // Set text color
-        var colorHex = theme.BodyTextColor ?? "000000";
+        // Resolve text color: PPTX per-format override > shared
+        var colorHex = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "000000";
         runProperties.Append(new A.SolidFill(
             new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
 
@@ -206,15 +253,17 @@ public class PptxEmitter : ISlideEmitter
             new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
             run);
 
-        var textBody = new P.TextBody(
-            new A.BodyProperties
-            {
-                Wrap = A.TextWrappingValues.Square,
-                RightToLeftColumns = false,
-                Anchor = A.TextAnchoringTypeValues.Top
-            },
-            new A.ListStyle(),
-            paragraph);
+        var bodyProperties = new A.BodyProperties
+        {
+            Wrap = A.TextWrappingValues.Square,
+            RightToLeftColumns = false,
+            Anchor = A.TextAnchoringTypeValues.Top
+        };
+
+        if (fitText)
+            bodyProperties.Append(new A.NormalAutoFit());
+
+        var textBody = new P.TextBody(bodyProperties, new A.ListStyle(), paragraph);
 
         var shape = new P.Shape(
             new P.NonVisualShapeProperties(
@@ -264,9 +313,16 @@ public class PptxEmitter : ISlideEmitter
 
     private static string GetInlineText(ContainerInline? inline)
     {
-        if (inline == null) return "";
+        return GetInlineTextWithFit(inline).Text;
+    }
+
+    private static (string Text, bool IsFit) GetInlineTextWithFit(ContainerInline? inline)
+    {
+        if (inline == null) return ("", false);
 
         var text = new System.Text.StringBuilder();
+        var isFit = false;
+
         foreach (var child in inline)
         {
             switch (child)
@@ -278,17 +334,30 @@ public class PptxEmitter : ISlideEmitter
                     text.Append(code.Content);
                     break;
                 case EmphasisInline emphasis:
-                    text.Append(GetInlineText(emphasis));
+                    var (emphText, emphFit) = GetInlineTextWithFit(emphasis);
+                    text.Append(emphText);
+                    isFit |= emphFit;
                     break;
                 case LinkInline link:
-                    text.Append(GetInlineText(link));
+                    var (linkText, linkFit) = GetInlineTextWithFit(link);
+                    text.Append(linkText);
+                    isFit |= linkFit;
+                    break;
+                case HtmlInline html:
+                    var tag = html.Tag?.Trim();
+                    if (tag != null && tag.Contains("fit", StringComparison.OrdinalIgnoreCase)
+                        && tag.StartsWith("<!--") && tag.EndsWith("-->"))
+                    {
+                        isFit = true;
+                    }
                     break;
                 case LineBreakInline:
                     text.Append(' ');
                     break;
             }
         }
-        return text.ToString();
+
+        return (text.ToString().Trim(), isFit);
     }
 
     private static string GetListItemText(ListItemBlock item)
@@ -301,8 +370,24 @@ public class PptxEmitter : ISlideEmitter
         return "";
     }
 
+    /// <summary>
+    /// Gets heading font size in hundredths of a point.
+    /// Uses PPTX theme sizes (levels 1-3) when available, falls back to shared theme.
+    /// </summary>
     private static int GetHeadingFontSize(int level, ResolvedTheme theme)
     {
+        var pptx = theme.Pptx;
+        if (pptx != null)
+        {
+            return level switch
+            {
+                1 => (int)(pptx.Heading1Size * 100),
+                2 => (int)(pptx.Heading2Size * 100),
+                3 => (int)(pptx.Heading3Size * 100),
+                _ => (int)(pptx.BaseFontSize * 100)
+            };
+        }
+
         return level switch
         {
             1 => (int)(theme.Heading1Size * 100),
@@ -315,16 +400,27 @@ public class PptxEmitter : ISlideEmitter
         };
     }
 
-    private static SlideMaster CreateSlideMaster()
+    private static SlideMaster CreateSlideMaster(ResolvedTheme theme)
     {
+        var csd = new CommonSlideData(
+            new ShapeTree(
+                new P.NonVisualGroupShapeProperties(
+                    new P.NonVisualDrawingProperties { Id = 1U, Name = "" },
+                    new P.NonVisualGroupShapeDrawingProperties(),
+                    new ApplicationNonVisualDrawingProperties()),
+                new GroupShapeProperties()));
+
+        // Apply default background to slide master if theme specifies one
+        var bgColor = theme.Pptx?.BackgroundColor;
+        if (bgColor != null && !string.Equals(bgColor, "FFFFFF", StringComparison.OrdinalIgnoreCase))
+        {
+            csd.Background = new Background(
+                new BackgroundProperties(
+                    new A.SolidFill(new A.RgbColorModelHex { Val = bgColor.TrimStart('#') })));
+        }
+
         return new SlideMaster(
-            new CommonSlideData(
-                new ShapeTree(
-                    new P.NonVisualGroupShapeProperties(
-                        new P.NonVisualDrawingProperties { Id = 1U, Name = "" },
-                        new P.NonVisualGroupShapeDrawingProperties(),
-                        new ApplicationNonVisualDrawingProperties()),
-                    new GroupShapeProperties())),
+            csd,
             new SlideLayoutIdList(
                 new SlideLayoutId { Id = 2147483649U, RelationshipId = "rId1" }));
     }

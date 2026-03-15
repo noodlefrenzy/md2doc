@@ -257,4 +257,189 @@ public class ThemeCascadeResolverTests
         var input = new ThemeCascadeInput { PresetName = "nonexistent" };
         Should.Throw<ArgumentException>(() => ThemeCascadeResolver.Resolve(input));
     }
+
+    // ── PPTX sub-object cascade ──────────────────────────────────────
+
+    [Fact]
+    public void Resolve_DefaultPreset_PptxSubObjectPopulated()
+    {
+        var input = new ThemeCascadeInput();
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx.ShouldNotBeNull();
+        result.Pptx!.BaseFontSize.ShouldBe(24.0);
+        result.Pptx.Heading1Size.ShouldBe(44.0);
+        result.Pptx.SlideSize.ShouldBe(Md2.Core.Slides.SlideSize.Widescreen16x9);
+    }
+
+    [Fact]
+    public void Resolve_PptxFontSizes_CascadeFromTheme()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                BaseFontSize = 28,
+                Heading1Size = 48
+            }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.BaseFontSize.ShouldBe(28.0);
+        result.Pptx.Heading1Size.ShouldBe(48.0);
+        // Non-overridden values use defaults
+        result.Pptx.Heading2Size.ShouldBe(36.0);
+    }
+
+    [Fact]
+    public void Resolve_PptxSlideSize_ParsedFromString()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { SlideSize = "4:3" }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.SlideSize.ShouldBe(Md2.Core.Slides.SlideSize.Standard4x3);
+    }
+
+    [Fact]
+    public void Resolve_PptxPerFormatColors_Override()
+    {
+        var theme = new ThemeDefinition
+        {
+            Colors = new ThemeColorsSection { BodyText = "333333" },
+            Pptx = new ThemePptxSection
+            {
+                Colors = new ThemeColorsSection { BodyText = "d6deeb" }
+            }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        // Shared colors → DOCX path
+        result.BodyTextColor.ShouldBe("333333");
+        // PPTX per-format override
+        result.Pptx!.BodyTextColor.ShouldBe("d6deeb");
+    }
+
+    [Fact]
+    public void Resolve_PptxLayoutThemes_CascadeFromTheme()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                TitleSlide = new ThemePptxTitleSlideSection
+                {
+                    TitleSize = 60,
+                    SubtitleSize = 32,
+                    BackgroundColor = "011627"
+                },
+                Content = new ThemePptxContentSection
+                {
+                    TitleSize = 40,
+                    BodySize = 26,
+                    BulletIndent = 40
+                }
+            }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.TitleSlide.TitleSize.ShouldBe(60.0);
+        result.Pptx.TitleSlide.SubtitleSize.ShouldBe(32.0);
+        result.Pptx.TitleSlide.BackgroundColor.ShouldBe("011627");
+        result.Pptx.Content.TitleSize.ShouldBe(40.0);
+        result.Pptx.Content.BodySize.ShouldBe(26.0);
+        result.Pptx.Content.BulletIndent.ShouldBe(40.0);
+    }
+
+    [Fact]
+    public void Resolve_PptxChartPalette_CascadesFromTheme()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                ChartPalette = new List<string> { "AA0000", "BB0000", "CC0000" }
+            }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.ChartPalette.Count.ShouldBe(3);
+        result.Pptx.ChartPalette[0].ShouldBe("AA0000");
+    }
+
+    [Fact]
+    public void Resolve_PptxCodeBlock_CascadesFromTheme()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                CodeBlock = new ThemePptxCodeBlockSection
+                {
+                    FontSize = 16,
+                    Padding = 14
+                }
+            }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.CodeBlock.FontSize.ShouldBe(16.0);
+        result.Pptx.CodeBlock.Padding.ShouldBe(14.0);
+        // Default
+        result.Pptx.CodeBlock.BorderRadius.ShouldBe(8.0);
+    }
+
+    [Fact]
+    public void Resolve_PptxBackground_CascadesFromTheme()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                Background = new ThemePptxBackgroundSection { Color = "011627" }
+            }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.BackgroundColor.ShouldBe("011627");
+    }
+
+    [Fact]
+    public void Resolve_PptxCliOverridesTheme()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { BaseFontSize = 28 }
+        };
+        var cli = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { BaseFontSize = 32 }
+        };
+        var input = new ThemeCascadeInput { Theme = theme, CliOverrides = cli };
+        var result = ThemeCascadeResolver.Resolve(input);
+
+        result.Pptx!.BaseFontSize.ShouldBe(32.0);
+    }
+
+    [Fact]
+    public void Resolve_PptxTrace_IncludesPptxProperties()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { BaseFontSize = 28 }
+        };
+        var input = new ThemeCascadeInput { Theme = theme };
+        var (_, trace) = ThemeCascadeResolver.ResolveWithTrace(input);
+
+        trace.ShouldContain(e => e.Property == "Pptx.BaseFontSize" && e.Source == CascadeLayer.Theme);
+    }
 }

@@ -48,3 +48,38 @@ docx:
     marginBottom: 1440
     marginLeft: 1800
     marginRight: 1800
+
+pptx:
+  slideSize: "16:9"
+  baseFontSize: 24
+  heading1Size: 44
+  heading2Size: 34
+  heading3Size: 28
+  colors:
+    bodyText: "F5EDD6"
+  background:
+    color: "1A2F2F"
+  titleSlide:
+    titleSize: 54
+    subtitleSize: 28
+    backgroundColor: "1A4B4B"
+  sectionDivider:
+    titleSize: 44
+    backgroundColor: "1A4B4B"
+  content:
+    titleSize: 36
+    bodySize: 24
+    bulletIndent: 36
+  twoColumn:
+    gutter: 48
+  codeBlock:
+    fontSize: 14
+    padding: 12
+    borderRadius: 8
+  chartPalette:
+    - "1A4B4B"
+    - "D4920B"
+    - "4A8B8B"
+    - "B37A00"
+    - "6B4D3A"
+    - "8B6B5B"

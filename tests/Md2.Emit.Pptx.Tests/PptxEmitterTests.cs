@@ -150,6 +150,172 @@ public class PptxEmitterTests
         pptx.PackageProperties.Title.ShouldBe("Test Deck");
     }
 
+    // ── Fit heading ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_FitHeading_HasAutoFit()
+    {
+        // MARP <!-- fit --> heading should produce autoFit on the text body
+        var doc = CreateSimpleDoc("# <!-- fit --> Auto-scaled Heading");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!
+            .Elements<Shape>().ToList();
+
+        // At least one shape should have NormalAutoFit
+        var hasAutoFit = shapes.Any(s =>
+            s.TextBody != null &&
+            s.TextBody.BodyProperties != null &&
+            s.TextBody.BodyProperties.Elements<DocumentFormat.OpenXml.Drawing.NormalAutoFit>().Any());
+        hasAutoFit.ShouldBeTrue("Expected at least one shape with NormalAutoFit for fit heading");
+    }
+
+    [Fact]
+    public async Task EmitAsync_RegularHeading_NoAutoFit()
+    {
+        var doc = CreateSimpleDoc("# Regular Heading");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!
+            .Elements<Shape>().ToList();
+
+        // No shape should have NormalAutoFit
+        var hasAutoFit = shapes.Any(s =>
+            s.TextBody != null &&
+            s.TextBody.BodyProperties != null &&
+            s.TextBody.BodyProperties.Elements<DocumentFormat.OpenXml.Drawing.NormalAutoFit>().Any());
+        hasAutoFit.ShouldBeFalse("Regular heading should not have NormalAutoFit");
+    }
+
+    // ── PPTX theme integration ──────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_WithPptxTheme_UsesThemeColors()
+    {
+        var doc = CreateSimpleDoc("# Hello\n\nText");
+        var theme = new ResolvedTheme();
+        theme.Pptx = new Md2.Core.Pipeline.ResolvedPptxTheme
+        {
+            BodyTextColor = "AABBCC"
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Length.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task EmitAsync_WithDarkBackground_SetsSlideBackground()
+    {
+        var doc = CreateSimpleDoc("# Hello");
+        var theme = new ResolvedTheme();
+        theme.Pptx = new Md2.Core.Pipeline.ResolvedPptxTheme
+        {
+            BackgroundColor = "011627"
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        // Slide master should have background set
+        var master = pptx.PresentationPart!.SlideMasterParts.First().SlideMaster;
+        master.CommonSlideData!.Background.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task EmitAsync_WhiteBackground_NoExplicitBackground()
+    {
+        var doc = CreateSimpleDoc("# Hello");
+        var theme = new ResolvedTheme();
+        theme.Pptx = new Md2.Core.Pipeline.ResolvedPptxTheme
+        {
+            BackgroundColor = "FFFFFF"
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var master = pptx.PresentationPart!.SlideMasterParts.First().SlideMaster;
+        // White background should not create an explicit background element
+        master.CommonSlideData!.Background.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task EmitAsync_TitleSlideLayout_GetsLayoutBackground()
+    {
+        var doc = new SlideDocument();
+        var pipeline = new MarkdownPipelineBuilder().Build();
+        var content = Markdig.Markdown.Parse("# Title", pipeline);
+        var slide = new CoreSlide(0, content) { Layout = Md2.Core.Slides.SlideLayout.Title };
+        doc.AddSlide(slide);
+
+        var theme = new ResolvedTheme();
+        theme.Pptx = new Md2.Core.Pipeline.ResolvedPptxTheme
+        {
+            TitleSlide = new Md2.Core.Pipeline.ResolvedSlideLayoutTheme
+            {
+                BackgroundColor = "003366"
+            }
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        slidePart.Slide.CommonSlideData!.Background.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task EmitAsync_PptxThemeFontSizes_UsedForHeadings()
+    {
+        var doc = CreateSimpleDoc("# Big Title");
+        var theme = new ResolvedTheme();
+        theme.Pptx = new Md2.Core.Pipeline.ResolvedPptxTheme
+        {
+            Heading1Size = 60.0
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Shape>().ToList();
+
+        // Find the heading shape and verify font size
+        var headingShape = shapes.First();
+        var runs = headingShape.TextBody!.Elements<DocumentFormat.OpenXml.Drawing.Paragraph>()
+            .SelectMany(p => p.Elements<DocumentFormat.OpenXml.Drawing.Run>())
+            .ToList();
+        runs.ShouldNotBeEmpty();
+        runs.First().RunProperties!.FontSize!.Value.ShouldBe(6000); // 60pt * 100
+    }
+
     // ── Null checks ─────────────────────────────────────────────────
 
     [Fact]

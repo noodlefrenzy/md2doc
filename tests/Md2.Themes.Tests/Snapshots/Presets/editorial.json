@@ -30,5 +30,57 @@
   "marginTop": 1800,
   "marginBottom": 1800,
   "marginLeft": 2160,
-  "marginRight": 2160
+  "marginRight": 2160,
+  "pptx": {
+    "baseFontSize": 24,
+    "heading1Size": 48,
+    "heading2Size": 36,
+    "heading3Size": 28,
+    "slideSize": {
+      "width": 12192000,
+      "height": 6858000
+    },
+    "backgroundColor": "FFFFFF",
+    "backgroundImage": null,
+    "bodyTextColor": null,
+    "primaryColor": null,
+    "secondaryColor": null,
+    "titleSlide": {
+      "titleSize": 56,
+      "subtitleSize": 28,
+      "bodySize": 24,
+      "bulletIndent": 36,
+      "backgroundColor": "8B1A1A"
+    },
+    "sectionDivider": {
+      "titleSize": 44,
+      "subtitleSize": null,
+      "bodySize": 24,
+      "bulletIndent": 36,
+      "backgroundColor": "8B1A1A"
+    },
+    "content": {
+      "titleSize": 36,
+      "subtitleSize": null,
+      "bodySize": 24,
+      "bulletIndent": 36,
+      "backgroundColor": null
+    },
+    "twoColumn": {
+      "gutter": 52
+    },
+    "chartPalette": [
+      "8B1A1A",
+      "C23B22",
+      "D4B5A0",
+      "5C3D2E",
+      "E8D5C4",
+      "A0522D"
+    ],
+    "codeBlock": {
+      "fontSize": 14,
+      "padding": 12,
+      "borderRadius": 8
+    }
+  }
 }

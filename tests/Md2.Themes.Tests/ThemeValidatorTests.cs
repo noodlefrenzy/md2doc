@@ -678,4 +678,135 @@ public class ThemeValidatorTests
             i.PropertyPath.Contains("Page", StringComparison.OrdinalIgnoreCase) &&
             i.PropertyPath.Contains("Width", StringComparison.OrdinalIgnoreCase));
     }
+
+    // ─── PPTX section validation ─────────────────────────────────────
+
+    [Fact]
+    public void Validate_ValidPptxSection_ReturnsNoErrors()
+    {
+        var theme = MakeValidTheme();
+        theme.Pptx = new ThemePptxSection
+        {
+            SlideSize = "16:9",
+            BaseFontSize = 24,
+            Heading1Size = 44,
+            Heading2Size = 36,
+            Heading3Size = 28,
+            Background = new ThemePptxBackgroundSection { Color = "011627" },
+            TitleSlide = new ThemePptxTitleSlideSection
+            {
+                TitleSize = 54,
+                SubtitleSize = 28,
+                BackgroundColor = "011627"
+            },
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_PptxNullSection_NoErrors()
+    {
+        var theme = MakeValidTheme();
+        theme.Pptx = null;
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_PptxInvalidSlideSize_ReturnsError()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { SlideSize = "3:2" }
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldContain(i =>
+            i.Severity == ValidationSeverity.Error &&
+            i.PropertyPath == "Pptx.SlideSize");
+    }
+
+    [Theory]
+    [InlineData("16:9")]
+    [InlineData("4:3")]
+    [InlineData("16:10")]
+    public void Validate_PptxValidSlideSize_NoErrors(string size)
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { SlideSize = size }
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldNotContain(i => i.PropertyPath == "Pptx.SlideSize");
+    }
+
+    [Fact]
+    public void Validate_PptxNegativeFontSize_ReturnsError()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection { BaseFontSize = -1 }
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldContain(i =>
+            i.Severity == ValidationSeverity.Error &&
+            i.PropertyPath == "Pptx.BaseFontSize");
+    }
+
+    [Fact]
+    public void Validate_PptxInvalidBackgroundColor_ReturnsError()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                Background = new ThemePptxBackgroundSection { Color = "ZZZZZZ" }
+            }
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldContain(i =>
+            i.Severity == ValidationSeverity.Error &&
+            i.PropertyPath == "Pptx.Background.Color");
+    }
+
+    [Fact]
+    public void Validate_PptxPerFormatColors_Validated()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                Colors = new ThemeColorsSection { BodyText = "ZZZZZZ" }
+            }
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldContain(i =>
+            i.Severity == ValidationSeverity.Error &&
+            i.PropertyPath != null &&
+            i.PropertyPath.Contains("Pptx.Colors"));
+    }
+
+    [Fact]
+    public void Validate_PptxChartPaletteInvalidColor_ReturnsError()
+    {
+        var theme = new ThemeDefinition
+        {
+            Pptx = new ThemePptxSection
+            {
+                ChartPalette = new List<string> { "AABBCC", "ZZZZZZ" }
+            }
+        };
+
+        var issues = ThemeValidator.Validate(theme);
+        issues.ShouldContain(i =>
+            i.Severity == ValidationSeverity.Error &&
+            i.PropertyPath == "Pptx.ChartPalette[1]");
+    }
 }

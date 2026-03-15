@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "YAML theme model — all nullable for partial themes", deps: [], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "YAML theme model — all nullable for partial themes", deps: [], state: active, last: "sato@2026-03-15" }
 
 using YamlDotNet.Serialization;
 
@@ -20,6 +20,9 @@ public class ThemeDefinition
 
     [YamlMember(Alias = "docx")]
     public ThemeDocxSection? Docx { get; set; }
+
+    [YamlMember(Alias = "pptx")]
+    public ThemePptxSection? Pptx { get; set; }
 }
 
 public class ThemeMetaSection
@@ -162,4 +165,120 @@ public class ThemePageSection
 
     [YamlMember(Alias = "marginRight")]
     public int? MarginRight { get; set; }
+}
+
+/// <summary>
+/// PPTX-specific theme section. Parallel to ThemeDocxSection.
+/// Per ADR-0016: additive pptx: section in unified theme YAML.
+/// </summary>
+public class ThemePptxSection
+{
+    [YamlMember(Alias = "slideSize")]
+    public string? SlideSize { get; set; }
+
+    [YamlMember(Alias = "baseFontSize")]
+    public double? BaseFontSize { get; set; }
+
+    [YamlMember(Alias = "heading1Size")]
+    public double? Heading1Size { get; set; }
+
+    [YamlMember(Alias = "heading2Size")]
+    public double? Heading2Size { get; set; }
+
+    [YamlMember(Alias = "heading3Size")]
+    public double? Heading3Size { get; set; }
+
+    /// <summary>
+    /// Per-format color overrides (ADR-0016 Wei debate).
+    /// Overrides shared colors section for PPTX output.
+    /// </summary>
+    [YamlMember(Alias = "colors")]
+    public ThemeColorsSection? Colors { get; set; }
+
+    [YamlMember(Alias = "titleSlide")]
+    public ThemePptxTitleSlideSection? TitleSlide { get; set; }
+
+    [YamlMember(Alias = "sectionDivider")]
+    public ThemePptxSectionDividerSection? SectionDivider { get; set; }
+
+    [YamlMember(Alias = "content")]
+    public ThemePptxContentSection? Content { get; set; }
+
+    [YamlMember(Alias = "twoColumn")]
+    public ThemePptxTwoColumnSection? TwoColumn { get; set; }
+
+    [YamlMember(Alias = "background")]
+    public ThemePptxBackgroundSection? Background { get; set; }
+
+    [YamlMember(Alias = "chartPalette")]
+    public List<string>? ChartPalette { get; set; }
+
+    [YamlMember(Alias = "codeBlock")]
+    public ThemePptxCodeBlockSection? CodeBlock { get; set; }
+}
+
+public class ThemePptxTitleSlideSection
+{
+    [YamlMember(Alias = "titleSize")]
+    public double? TitleSize { get; set; }
+
+    [YamlMember(Alias = "subtitleSize")]
+    public double? SubtitleSize { get; set; }
+
+    private string? _backgroundColor;
+
+    [YamlMember(Alias = "backgroundColor")]
+    public string? BackgroundColor { get => _backgroundColor; set => _backgroundColor = ThemeColorsSection.NormalizeHex(value); }
+}
+
+public class ThemePptxSectionDividerSection
+{
+    [YamlMember(Alias = "titleSize")]
+    public double? TitleSize { get; set; }
+
+    private string? _backgroundColor;
+
+    [YamlMember(Alias = "backgroundColor")]
+    public string? BackgroundColor { get => _backgroundColor; set => _backgroundColor = ThemeColorsSection.NormalizeHex(value); }
+}
+
+public class ThemePptxContentSection
+{
+    [YamlMember(Alias = "titleSize")]
+    public double? TitleSize { get; set; }
+
+    [YamlMember(Alias = "bodySize")]
+    public double? BodySize { get; set; }
+
+    [YamlMember(Alias = "bulletIndent")]
+    public double? BulletIndent { get; set; }
+}
+
+public class ThemePptxTwoColumnSection
+{
+    [YamlMember(Alias = "gutter")]
+    public double? Gutter { get; set; }
+}
+
+public class ThemePptxBackgroundSection
+{
+    private string? _color;
+
+    [YamlMember(Alias = "color")]
+    public string? Color { get => _color; set => _color = ThemeColorsSection.NormalizeHex(value); }
+
+    [YamlMember(Alias = "image")]
+    public string? Image { get; set; }
+}
+
+public class ThemePptxCodeBlockSection
+{
+    [YamlMember(Alias = "fontSize")]
+    public double? FontSize { get; set; }
+
+    [YamlMember(Alias = "padding")]
+    public double? Padding { get; set; }
+
+    [YamlMember(Alias = "borderRadius")]
+    public double? BorderRadius { get; set; }
 }

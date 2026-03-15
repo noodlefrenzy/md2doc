@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "schema validation + unusual value warnings for ThemeDefinition", deps: [ThemeDefinition.cs], state: active, last: "sato@2026-03-12" }
+// agent-notes: { ctx: "schema validation + unusual value warnings for ThemeDefinition + PPTX section", deps: [ThemeDefinition.cs], state: active, last: "sato@2026-03-15" }
 
 using System.Text.RegularExpressions;
 
@@ -43,6 +43,7 @@ public static partial class ThemeValidator
 
         ValidateColors(theme.Colors, issues);
         ValidateDocx(theme.Docx, issues);
+        ValidatePptx(theme.Pptx, issues);
 
         return issues;
     }
@@ -177,6 +178,98 @@ public static partial class ThemeValidator
         {
             issues.Add(new ThemeValidationIssue(
                 $"Line spacing {value.Value} is outside the typical range ({MinReasonableLineSpacing}-{MaxReasonableLineSpacing}).",
+                ValidationSeverity.Warning,
+                propertyPath));
+        }
+    }
+
+    private static void ValidatePptx(ThemePptxSection? pptx, List<ThemeValidationIssue> issues)
+    {
+        if (pptx is null) return;
+
+        ValidatePositiveDouble(pptx.BaseFontSize, "Pptx.BaseFontSize", "Font size", issues);
+        ValidatePositiveDouble(pptx.Heading1Size, "Pptx.Heading1Size", "Heading size", issues);
+        ValidatePositiveDouble(pptx.Heading2Size, "Pptx.Heading2Size", "Heading size", issues);
+        ValidatePositiveDouble(pptx.Heading3Size, "Pptx.Heading3Size", "Heading size", issues);
+
+        // Validate slide size string
+        if (pptx.SlideSize is not null && pptx.SlideSize is not ("16:9" or "4:3" or "16:10"))
+        {
+            issues.Add(new ThemeValidationIssue(
+                $"Invalid slide size '{pptx.SlideSize}' — expected '16:9', '4:3', or '16:10'.",
+                ValidationSeverity.Error,
+                "Pptx.SlideSize"));
+        }
+
+        // Per-format color overrides
+        if (pptx.Colors is not null)
+            ValidateColors(pptx.Colors, issues, "Pptx.Colors");
+
+        // Background color
+        ValidateHexColor(pptx.Background?.Color, "Pptx.Background.Color", issues);
+
+        // Layout sections
+        ValidatePositiveDouble(pptx.TitleSlide?.TitleSize, "Pptx.TitleSlide.TitleSize", "Title size", issues);
+        ValidatePositiveDouble(pptx.TitleSlide?.SubtitleSize, "Pptx.TitleSlide.SubtitleSize", "Subtitle size", issues);
+        ValidateHexColor(pptx.TitleSlide?.BackgroundColor, "Pptx.TitleSlide.BackgroundColor", issues);
+
+        ValidatePositiveDouble(pptx.SectionDivider?.TitleSize, "Pptx.SectionDivider.TitleSize", "Title size", issues);
+        ValidateHexColor(pptx.SectionDivider?.BackgroundColor, "Pptx.SectionDivider.BackgroundColor", issues);
+
+        ValidatePositiveDouble(pptx.Content?.TitleSize, "Pptx.Content.TitleSize", "Title size", issues);
+        ValidatePositiveDouble(pptx.Content?.BodySize, "Pptx.Content.BodySize", "Body size", issues);
+        ValidatePositiveDouble(pptx.Content?.BulletIndent, "Pptx.Content.BulletIndent", "Bullet indent", issues);
+
+        ValidatePositiveDouble(pptx.TwoColumn?.Gutter, "Pptx.TwoColumn.Gutter", "Gutter", issues);
+
+        ValidatePositiveDouble(pptx.CodeBlock?.FontSize, "Pptx.CodeBlock.FontSize", "Code font size", issues);
+        ValidatePositiveDouble(pptx.CodeBlock?.Padding, "Pptx.CodeBlock.Padding", "Code padding", issues);
+
+        // Chart palette colors
+        if (pptx.ChartPalette is not null)
+        {
+            for (int i = 0; i < pptx.ChartPalette.Count; i++)
+            {
+                ValidateHexColor(ThemeColorsSection.NormalizeHex(pptx.ChartPalette[i]),
+                    $"Pptx.ChartPalette[{i}]", issues);
+            }
+        }
+
+        // PPTX font size warnings (different range: slides use larger sizes)
+        var errorPaths = new HashSet<string>(
+            issues.Where(i => i.Severity == ValidationSeverity.Error && i.PropertyPath is not null)
+                  .Select(i => i.PropertyPath!));
+
+        WarnPptxFontSizeRange(pptx.BaseFontSize, "Pptx.BaseFontSize", errorPaths, issues);
+        WarnPptxFontSizeRange(pptx.Heading1Size, "Pptx.Heading1Size", errorPaths, issues);
+        WarnPptxFontSizeRange(pptx.Heading2Size, "Pptx.Heading2Size", errorPaths, issues);
+        WarnPptxFontSizeRange(pptx.Heading3Size, "Pptx.Heading3Size", errorPaths, issues);
+    }
+
+    private static void ValidateColors(ThemeColorsSection colors, List<ThemeValidationIssue> issues, string prefix)
+    {
+        ValidateHexColor(colors.Primary, $"{prefix}.Primary", issues);
+        ValidateHexColor(colors.Secondary, $"{prefix}.Secondary", issues);
+        ValidateHexColor(colors.BodyText, $"{prefix}.BodyText", issues);
+        ValidateHexColor(colors.CodeBackground, $"{prefix}.CodeBackground", issues);
+        ValidateHexColor(colors.CodeBorder, $"{prefix}.CodeBorder", issues);
+        ValidateHexColor(colors.Link, $"{prefix}.Link", issues);
+        ValidateHexColor(colors.TableHeaderBackground, $"{prefix}.TableHeaderBackground", issues);
+        ValidateHexColor(colors.TableHeaderForeground, $"{prefix}.TableHeaderForeground", issues);
+        ValidateHexColor(colors.TableBorder, $"{prefix}.TableBorder", issues);
+        ValidateHexColor(colors.TableAlternateRow, $"{prefix}.TableAlternateRow", issues);
+        ValidateHexColor(colors.BlockquoteBorder, $"{prefix}.BlockquoteBorder", issues);
+        ValidateHexColor(colors.BlockquoteText, $"{prefix}.BlockquoteText", issues);
+    }
+
+    private static void WarnPptxFontSizeRange(double? value, string propertyPath, HashSet<string> errorPaths, List<ThemeValidationIssue> issues)
+    {
+        if (value is null || errorPaths.Contains(propertyPath)) return;
+        // PPTX uses larger font sizes than DOCX: typical range 10-120pt
+        if (value.Value < MinReasonableFontSize || value.Value > 120)
+        {
+            issues.Add(new ThemeValidationIssue(
+                $"PPTX font size {value.Value}pt is outside the typical range ({MinReasonableFontSize}-120pt).",
                 ValidationSeverity.Warning,
                 propertyPath));
         }

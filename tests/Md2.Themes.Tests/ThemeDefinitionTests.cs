@@ -88,4 +88,54 @@ public class ThemeDefinitionTests
         page.MarginLeft.ShouldBeNull();
         page.MarginRight.ShouldBeNull();
     }
+
+    // ── PPTX section ─────────────────────────────────────────────────
+
+    [Fact]
+    public void NewDefinition_PptxSectionNull()
+    {
+        var def = new ThemeDefinition();
+        def.Pptx.ShouldBeNull();
+    }
+
+    [Fact]
+    public void PptxSection_AllPropertiesNullable()
+    {
+        var pptx = new ThemePptxSection();
+
+        pptx.SlideSize.ShouldBeNull();
+        pptx.BaseFontSize.ShouldBeNull();
+        pptx.Heading1Size.ShouldBeNull();
+        pptx.Heading2Size.ShouldBeNull();
+        pptx.Heading3Size.ShouldBeNull();
+        pptx.Colors.ShouldBeNull();
+        pptx.TitleSlide.ShouldBeNull();
+        pptx.SectionDivider.ShouldBeNull();
+        pptx.Content.ShouldBeNull();
+        pptx.TwoColumn.ShouldBeNull();
+        pptx.Background.ShouldBeNull();
+        pptx.ChartPalette.ShouldBeNull();
+        pptx.CodeBlock.ShouldBeNull();
+    }
+
+    [Fact]
+    public void PptxTitleSlideSection_BackgroundColorNormalized()
+    {
+        var ts = new ThemePptxTitleSlideSection { BackgroundColor = "#011627" };
+        ts.BackgroundColor.ShouldBe("011627");
+    }
+
+    [Fact]
+    public void PptxBackgroundSection_ColorNormalized()
+    {
+        var bg = new ThemePptxBackgroundSection { Color = "#AABBCC" };
+        bg.Color.ShouldBe("AABBCC");
+    }
+
+    [Fact]
+    public void PptxSectionDividerSection_BackgroundColorNormalized()
+    {
+        var sd = new ThemePptxSectionDividerSection { BackgroundColor = "#0b2942" };
+        sd.BackgroundColor.ShouldBe("0b2942");
+    }
 }

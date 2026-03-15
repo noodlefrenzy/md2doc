@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Resolved theme with font/color/spacing/table defaults", deps: [], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Resolved theme with font/color/spacing/table defaults + PPTX sub-object", deps: [ResolvedPptxTheme.cs], state: active, last: "sato@2026-03-15" }
 
 namespace Md2.Core.Pipeline;
 
@@ -49,6 +49,9 @@ public class ResolvedTheme
     public int MarginBottom { get; set; } = 1440;   // 1 inch
     public int MarginLeft { get; set; } = 1800;     // 1.25 inches
     public int MarginRight { get; set; } = 1800;    // 1.25 inches
+
+    // PPTX-specific (ADR-0016: mandatory sub-object, not flat fields)
+    public ResolvedPptxTheme? Pptx { get; set; }
 
     /// <summary>
     /// Returns the heading font size in points for a given heading level (1-6).

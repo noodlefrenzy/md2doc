@@ -105,7 +105,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 | Pipeline | `ConversionPipeline`, `TransformResult` | Parse -> Transform -> Style Resolve -> Emit |
 | Transforms | `IAstTransform`, `TransformContext` | Ordered visitors over Markdig AST |
 | Emitter | `IFormatEmitter`, `EmitOptions` | Format-agnostic emit contract |
-| Types | `ResolvedTheme`, `StyleWarning`, `DocumentMetadata` | Shared value types |
+| Types | `ResolvedTheme`, `ResolvedPptxTheme`, `StyleWarning`, `DocumentMetadata` | Shared value types, PPTX sub-object per ADR-0016 |
 | AST keys | `AstDataKeys` | Static keys for SetData/GetData |
 
 ### Md2.Parsing -- Markdown Parser Configuration
@@ -147,17 +147,18 @@ Md2.Cli ─────────────── entry point, System.Comman
 | Image syntax | `MarpImageSyntax`, `MarpImageInfo` | Parse bg, w:, h:, fit, split keywords |
 | Extensions | `MarpExtensionParser`, `Md2Extension` | Parse `<!-- md2: {...} -->` YAML payloads |
 | Layout | `SlideLayoutInferrer` | Infer layout from content + class directive |
+| Theme mapping | `MarpThemeMapper` | Map MARP theme: directive → md2 preset hint |
 | Types | `MarpDirective`, `MarpDirectiveScope` | Directive value types |
 
 **External deps:** Markdig, YamlDotNet
 
 ### Md2.Emit.Pptx -- PPTX Emitter (v2)
 
-**Purpose:** Produces Open XML PresentationDocument from SlideDocument.
+**Purpose:** Produces Open XML PresentationDocument from SlideDocument with theme-based styling.
 
 | Area | Key Types | Notes |
 |------|----------|-------|
-| Emitter | `PptxEmitter : ISlideEmitter` | Top-level emitter |
+| Emitter | `PptxEmitter : ISlideEmitter` | Theme-based layouts, backgrounds, fit headings |
 
 **External deps:** DocumentFormat.OpenXml
 
@@ -253,12 +254,12 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Md2.Core.Tests | 134 | Pipeline orchestration, transform ordering, SlideDocument IR, SlidePipeline, warnings |
 | Md2.Parsing.Tests | 46 | Extension coverage, front matter extraction, YAML safety |
 | Md2.Emit.Docx.Tests | 187 | Style application, element construction, contrast, path safety |
-| Md2.Emit.Pptx.Tests | 9 | Basic PPTX emission, slide count, speaker notes, metadata |
-| Md2.Slides.Tests | 129 | Directive extraction/classification/cascade, slide splitting, image syntax, extensions, layout inference, MarpParser |
-| Md2.Themes.Tests | 185 | Theme parsing, cascade resolution, validation, formatting |
+| Md2.Emit.Pptx.Tests | 16 | PPTX emission, slide count, speaker notes, metadata, theme backgrounds, fit headings, layout colors |
+| Md2.Slides.Tests | 135 | Directive extraction/classification/cascade, slide splitting, image syntax, extensions, layout inference, MarpParser, theme mapping |
+| Md2.Themes.Tests | 213 | Theme parsing, cascade resolution, validation, formatting, PPTX section/cascade/validation |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 67 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer, theme config |
 | Md2.Preview.Tests | 33 | HTML renderer, server endpoints, file watcher, CSS sanitization, security headers |
 | Md2.Integration.Tests | 86 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
-| **Total** | **933** | |
+| **Total** | **974** | |

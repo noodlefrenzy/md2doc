@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "md2 theme resolve — displays cascade resolution table", deps: [ThemeCascadeResolver.cs, ThemeResolveFormatter.cs, ThemeParser.cs, PresetRegistry.cs], state: active, last: "sato@2026-03-13" }
+// agent-notes: { ctx: "md2 theme resolve — displays cascade resolution table with PPTX support", deps: [ThemeCascadeResolver.cs, ThemeResolveFormatter.cs, ThemeParser.cs, PresetRegistry.cs], state: active, last: "sato@2026-03-15" }
 
 using System.CommandLine;
 using System.Globalization;
@@ -183,6 +183,14 @@ public static class ThemeResolveCommand
         ["blockquoteborder"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteBorder = v; },
         ["colors.blockquotetext"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteText = v; },
         ["blockquotetext"] = (t, v) => { t.Colors ??= new(); t.Colors.BlockquoteText = v; },
+        // PPTX per-format color overrides
+        ["pptx.colors.bodytext"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Colors ??= new(); t.Pptx.Colors.BodyText = v; },
+        ["pptx.colors.primary"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Colors ??= new(); t.Pptx.Colors.Primary = v; },
+        ["pptx.colors.secondary"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Colors ??= new(); t.Pptx.Colors.Secondary = v; },
+        // PPTX slide size
+        ["pptx.slidesize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.SlideSize = v; },
+        // PPTX background
+        ["pptx.background.color"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Background ??= new(); t.Pptx.Background.Color = v; },
     };
 
     private static readonly Dictionary<string, DoubleSetter> DoubleOverrides = new(StringComparer.OrdinalIgnoreCase)
@@ -203,6 +211,22 @@ public static class ThemeResolveCommand
         ["heading6size"] = (t, v) => { t.Docx ??= new(); t.Docx.Heading6Size = v; },
         ["docx.linespacing"] = (t, v) => { t.Docx ??= new(); t.Docx.LineSpacing = v; },
         ["linespacing"] = (t, v) => { t.Docx ??= new(); t.Docx.LineSpacing = v; },
+        // PPTX font sizes
+        ["pptx.basefontsize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.BaseFontSize = v; },
+        ["pptx.heading1size"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Heading1Size = v; },
+        ["pptx.heading2size"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Heading2Size = v; },
+        ["pptx.heading3size"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Heading3Size = v; },
+        // PPTX layout sizes
+        ["pptx.titleslide.titlesize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.TitleSlide ??= new(); t.Pptx.TitleSlide.TitleSize = v; },
+        ["pptx.titleslide.subtitlesize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.TitleSlide ??= new(); t.Pptx.TitleSlide.SubtitleSize = v; },
+        ["pptx.content.titlesize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Content ??= new(); t.Pptx.Content.TitleSize = v; },
+        ["pptx.content.bodysize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Content ??= new(); t.Pptx.Content.BodySize = v; },
+        ["pptx.content.bulletindent"] = (t, v) => { t.Pptx ??= new(); t.Pptx.Content ??= new(); t.Pptx.Content.BulletIndent = v; },
+        ["pptx.sectiondivider.titlesize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.SectionDivider ??= new(); t.Pptx.SectionDivider.TitleSize = v; },
+        ["pptx.twocolumn.gutter"] = (t, v) => { t.Pptx ??= new(); t.Pptx.TwoColumn ??= new(); t.Pptx.TwoColumn.Gutter = v; },
+        ["pptx.codeblock.fontsize"] = (t, v) => { t.Pptx ??= new(); t.Pptx.CodeBlock ??= new(); t.Pptx.CodeBlock.FontSize = v; },
+        ["pptx.codeblock.padding"] = (t, v) => { t.Pptx ??= new(); t.Pptx.CodeBlock ??= new(); t.Pptx.CodeBlock.Padding = v; },
+        ["pptx.codeblock.borderradius"] = (t, v) => { t.Pptx ??= new(); t.Pptx.CodeBlock ??= new(); t.Pptx.CodeBlock.BorderRadius = v; },
     };
 
     private static readonly Dictionary<string, IntSetter> IntOverrides = new(StringComparer.OrdinalIgnoreCase)

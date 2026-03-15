@@ -252,6 +252,121 @@ public class ThemeParserTests
         theme.Meta.Version.ShouldBeNull();
     }
 
+    // ── PPTX section parsing ────────────────────────────────────────
+
+    [Fact]
+    public void Parse_PptxSection_FullSchema()
+    {
+        var yaml = """
+            pptx:
+              slideSize: "16:9"
+              baseFontSize: 24
+              heading1Size: 44
+              heading2Size: 36
+              heading3Size: 28
+              colors:
+                bodyText: "#d6deeb"
+                primary: "#7e57c2"
+              titleSlide:
+                titleSize: 54
+                subtitleSize: 28
+                backgroundColor: "#011627"
+              sectionDivider:
+                titleSize: 44
+                backgroundColor: "#0b2942"
+              content:
+                titleSize: 36
+                bodySize: 24
+                bulletIndent: 36
+              twoColumn:
+                gutter: 48
+              background:
+                color: "#011627"
+              chartPalette:
+                - "7e57c2"
+                - "42a5f5"
+                - "66bb6a"
+              codeBlock:
+                fontSize: 14
+                padding: 12
+                borderRadius: 8
+            """;
+
+        var theme = ThemeParser.Parse(yaml);
+
+        theme.Pptx.ShouldNotBeNull();
+        theme.Pptx!.SlideSize.ShouldBe("16:9");
+        theme.Pptx.BaseFontSize.ShouldBe(24.0);
+        theme.Pptx.Heading1Size.ShouldBe(44.0);
+        theme.Pptx.Heading2Size.ShouldBe(36.0);
+        theme.Pptx.Heading3Size.ShouldBe(28.0);
+
+        // Per-format color overrides
+        theme.Pptx.Colors.ShouldNotBeNull();
+        theme.Pptx.Colors!.BodyText.ShouldBe("d6deeb");
+        theme.Pptx.Colors.Primary.ShouldBe("7e57c2");
+
+        // Layout sections
+        theme.Pptx.TitleSlide.ShouldNotBeNull();
+        theme.Pptx.TitleSlide!.TitleSize.ShouldBe(54.0);
+        theme.Pptx.TitleSlide.SubtitleSize.ShouldBe(28.0);
+        theme.Pptx.TitleSlide.BackgroundColor.ShouldBe("011627");
+
+        theme.Pptx.SectionDivider.ShouldNotBeNull();
+        theme.Pptx.SectionDivider!.TitleSize.ShouldBe(44.0);
+        theme.Pptx.SectionDivider.BackgroundColor.ShouldBe("0b2942");
+
+        theme.Pptx.Content.ShouldNotBeNull();
+        theme.Pptx.Content!.TitleSize.ShouldBe(36.0);
+        theme.Pptx.Content.BodySize.ShouldBe(24.0);
+        theme.Pptx.Content.BulletIndent.ShouldBe(36.0);
+
+        theme.Pptx.TwoColumn.ShouldNotBeNull();
+        theme.Pptx.TwoColumn!.Gutter.ShouldBe(48.0);
+
+        theme.Pptx.Background.ShouldNotBeNull();
+        theme.Pptx.Background!.Color.ShouldBe("011627");
+
+        theme.Pptx.ChartPalette.ShouldNotBeNull();
+        theme.Pptx.ChartPalette!.Count.ShouldBe(3);
+        theme.Pptx.ChartPalette[0].ShouldBe("7e57c2");
+
+        theme.Pptx.CodeBlock.ShouldNotBeNull();
+        theme.Pptx.CodeBlock!.FontSize.ShouldBe(14.0);
+        theme.Pptx.CodeBlock.Padding.ShouldBe(12.0);
+        theme.Pptx.CodeBlock.BorderRadius.ShouldBe(8.0);
+    }
+
+    [Fact]
+    public void Parse_PptxAndDocxSections_BothPopulated()
+    {
+        var yaml = """
+            docx:
+              baseFontSize: 11
+            pptx:
+              baseFontSize: 24
+            """;
+
+        var theme = ThemeParser.Parse(yaml);
+
+        theme.Docx.ShouldNotBeNull();
+        theme.Docx!.BaseFontSize.ShouldBe(11.0);
+        theme.Pptx.ShouldNotBeNull();
+        theme.Pptx!.BaseFontSize.ShouldBe(24.0);
+    }
+
+    [Fact]
+    public void Parse_PptxMissing_PptxNull()
+    {
+        var yaml = """
+            docx:
+              baseFontSize: 11
+            """;
+
+        var theme = ThemeParser.Parse(yaml);
+        theme.Pptx.ShouldBeNull();
+    }
+
     // ── #81: ThemeParseException should extend Md2Exception ──────────
 
     [Fact]
