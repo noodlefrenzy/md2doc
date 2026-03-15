@@ -23,6 +23,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Md2.Core\Md2.Core.csproj" />
     <ProjectReference Include="..\..\src\Md2.Emit.Docx\Md2.Emit.Docx.csproj" />
+    <ProjectReference Include="..\..\src\Md2.Emit.Pptx\Md2.Emit.Pptx.csproj" />
+    <ProjectReference Include="..\..\src\Md2.Slides\Md2.Slides.csproj" />
     <ProjectReference Include="..\..\src\Md2.Parsing\Md2.Parsing.csproj" />
     <ProjectReference Include="..\..\src\Md2.Cli\Md2.Cli.csproj" />
   </ItemGroup>
