@@ -33,7 +33,6 @@ public static class MarpSlideExtractor
 
         // Track which directives belong to which slide
         var directivesWithSlideIndex = new List<MarpDirective>();
-        var htmlBlockSlideMap = BuildHtmlBlockSlideMap(allBlocks, headingDivider);
 
         // Assign slide indices to classified directives that came from HTML blocks
         foreach (var directive in classifiedDirectives)
@@ -148,27 +147,5 @@ public static class MarpSlideExtractor
             slide.SpeakerNotes = string.Join("\n\n", speakerNotes);
         }
         return slide;
-    }
-
-    private static Dictionary<Block, int> BuildHtmlBlockSlideMap(List<Block> blocks, int? headingDivider)
-    {
-        var map = new Dictionary<Block, int>();
-        var slideIndex = 0;
-
-        foreach (var block in blocks)
-        {
-            if (block is ThematicBreakBlock)
-            {
-                slideIndex++;
-                continue;
-            }
-            if (headingDivider.HasValue && block is HeadingBlock h && h.Level <= headingDivider.Value && map.Count > 0)
-            {
-                slideIndex++;
-            }
-            map[block] = slideIndex;
-        }
-
-        return map;
     }
 }

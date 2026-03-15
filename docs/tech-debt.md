@@ -13,7 +13,7 @@ agent-notes:
 <!-- Debt open for 3+ sprints is automatically escalated by Grace (override authority per persona definition). -->
 
 **Project:** md2
-**Last reviewed:** 2026-03-14 (Sprint 11 boundary)
+**Last reviewed:** 2026-03-15 (v2 Sprint 2 boundary)
 
 ## Active Debt
 
@@ -25,6 +25,8 @@ agent-notes:
 | TD-004 | ExtractInlineText duplicated across TableBuilder, ListBuilder, DocxAstVisitor | Copy-paste duplication | Sprint 3 | Each builder needed inline text extraction; no shared utility existed yet | S (extract to shared static helper) | Low: identical logic, divergence risk | Sprint 7 | **RESOLVED** — #76 InlineTextExtractor shared helper |
 | TD-005 | Md2.Emit.Docx references Md2.Parsing for AdmonitionBlock type | Architecture coupling | Sprint 4 | Need AdmonitionBlock type in emitter; no shared abstractions project exists | S (shared abstractions project) | Medium: coupling grows if more custom types added | Post-v1 | Open -- accepted |
 | TD-006 | BrowserManager.GetBrowserAsync null-check not synchronized | Concurrency bug | Sprint 5 | Single-threaded CLI doesn't expose the race; fixing adds complexity for no current benefit | S (add SemaphoreSlim or Lazy<Task<T>>) | Low: CLI is single-threaded | Post-v1 | Open -- accepted |
+| TD-007 | PptxEmitter has no ILogger, no CancellationToken on ISlideEmitter | Missing infrastructure | v2 Sprint 2 | Sprint 2 focused on getting PPTX output working; logging/cancellation deferred | S (add ILogger ctor, add CT param) | Medium: can't debug or cancel PPTX emit | v2 Sprint 3 | Open — #152 |
+| TD-008 | MarpSlideExtractor uses bare MarkdownPipelineBuilder | Architecture smell | v2 Sprint 2 | Re-parsing HTML comments for directive extraction uses minimal pipeline | XS (use Md2MarkdownPipeline.Build()) | Low: functional but bypasses shared config | v2 Sprint 3 | Open — #151 |
 
 ## Anticipated Debt (from plan)
 
