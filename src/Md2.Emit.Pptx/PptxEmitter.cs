@@ -113,12 +113,20 @@ public class PptxEmitter : ISlideEmitter
                             new A.ChildOffset { X = 0L, Y = 0L },
                             new A.ChildExtents { Cx = 0L, Cy = 0L })))));
 
-        var bgColor = ResolveBackgroundColor(slide, theme);
-        if (bgColor != null)
+        // Apply background: image takes precedence over color
+        if (!string.IsNullOrEmpty(slide.Directives.BackgroundImage))
         {
-            slideElement.CommonSlideData!.Background = new Background(
-                new BackgroundProperties(
-                    new A.SolidFill(new A.RgbColorModelHex { Val = bgColor })));
+            ApplyBackgroundImage(slideElement, slidePart, slide, slideSize);
+        }
+        else
+        {
+            var bgColor = ResolveBackgroundColor(slide, theme);
+            if (bgColor != null)
+            {
+                slideElement.CommonSlideData!.Background = new Background(
+                    new BackgroundProperties(
+                        new A.SolidFill(new A.RgbColorModelHex { Val = bgColor })));
+            }
         }
 
         var shapeTree = slideElement.CommonSlideData!.ShapeTree!;
@@ -210,6 +218,22 @@ public class PptxEmitter : ISlideEmitter
             }
         }
 
+        // Add header if present
+        if (!string.IsNullOrEmpty(slide.Directives.Header))
+        {
+            var headerShape = CreateHeaderShape(shapeId++, slide.Directives.Header,
+                slideWidth, theme);
+            shapeTree.Append(headerShape);
+        }
+
+        // Add footer if present
+        if (!string.IsNullOrEmpty(slide.Directives.Footer))
+        {
+            var footerShape = CreateFooterShape(shapeId++, slide.Directives.Footer,
+                slideWidth, slideHeight, theme);
+            shapeTree.Append(footerShape);
+        }
+
         // Add slide number if paginate is enabled
         if (slide.Directives.Paginate == true)
         {
@@ -259,6 +283,74 @@ public class PptxEmitter : ISlideEmitter
                 new A.Transform2D(
                     new A.Offset { X = slideWidth - 1828800L, Y = slideHeight - 457200L },
                     new A.Extents { Cx = 1371600L, Cy = 365760L }),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
+            textBody);
+    }
+
+    // ── Header/Footer (#128) ──────────────────────────────────────────
+
+    private static P.Shape CreateHeaderShape(uint shapeId, string headerText,
+        long slideWidth, ResolvedTheme theme)
+    {
+        var fontSize = 900; // 9pt
+        var colorHex = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "000000";
+        var fontName = theme.BodyFont ?? "Calibri";
+
+        var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSize };
+        runProperties.Append(new A.LatinFont { Typeface = fontName });
+        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
+            new A.Run(runProperties, new A.Text(headerText)));
+
+        var textBody = new P.TextBody(
+            new A.BodyProperties { Anchor = A.TextAnchoringTypeValues.Top },
+            new A.ListStyle(),
+            paragraph);
+
+        return new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Header {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset { X = 457200L, Y = 91440L }, // 0.5" from left, 0.1" from top
+                    new A.Extents { Cx = slideWidth - 914400L, Cy = 274320L }), // 0.3" tall
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
+            textBody);
+    }
+
+    private static P.Shape CreateFooterShape(uint shapeId, string footerText,
+        long slideWidth, long slideHeight, ResolvedTheme theme)
+    {
+        var fontSize = 900; // 9pt
+        var colorHex = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "000000";
+        var fontName = theme.BodyFont ?? "Calibri";
+
+        var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSize };
+        runProperties.Append(new A.LatinFont { Typeface = fontName });
+        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
+            new A.Run(runProperties, new A.Text(footerText)));
+
+        var textBody = new P.TextBody(
+            new A.BodyProperties { Anchor = A.TextAnchoringTypeValues.Bottom },
+            new A.ListStyle(),
+            paragraph);
+
+        return new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Footer {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset { X = 457200L, Y = slideHeight - 457200L },
+                    new A.Extents { Cx = slideWidth - 2743200L, Cy = 274320L }),
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
             textBody);
     }
@@ -640,6 +732,67 @@ public class PptxEmitter : ISlideEmitter
                     new A.Extents { Cx = width, Cy = 400000L }),
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
             textBody);
+    }
+
+    // ── Background images (#134) ─────────────────────────────────────
+
+    /// <summary>
+    /// Applies a background image to a slide if the directive specifies one.
+    /// Attempts to load the image from disk relative to the working directory.
+    /// </summary>
+    private static void ApplyBackgroundImage(P.Slide slideElement, SlidePart slidePart,
+        Md2.Core.Slides.Slide slide, Md2.Core.Slides.SlideSize slideSize)
+    {
+        var bgImage = slide.Directives.BackgroundImage;
+        if (string.IsNullOrEmpty(bgImage)) return;
+
+        // Strip url() wrapper if present (MARP format)
+        if (bgImage.StartsWith("url(", StringComparison.OrdinalIgnoreCase))
+        {
+            bgImage = bgImage[4..].TrimEnd(')').Trim('"', '\'', ' ');
+        }
+
+        // Only support local file paths (not URLs)
+        if (bgImage.StartsWith("http://") || bgImage.StartsWith("https://"))
+            return;
+
+        if (!File.Exists(bgImage)) return;
+
+        try
+        {
+            var mimeType = GetImageMimeType(bgImage);
+            if (mimeType == null) return;
+
+            var imagePart = slidePart.AddNewPart<ImagePart>(mimeType, "rIdBg");
+            using var imageStream = File.OpenRead(bgImage);
+            imagePart.FeedData(imageStream);
+
+            // Set slide background to image fill
+            var bgProps = new BackgroundProperties();
+            bgProps.Append(new A.BlipFill(
+                new A.Blip { Embed = "rIdBg" },
+                new A.Stretch(new A.FillRectangle())));
+
+            slideElement.CommonSlideData!.Background = new Background(bgProps);
+        }
+        catch
+        {
+            // Silently skip if image can't be loaded
+        }
+    }
+
+    private static string? GetImageMimeType(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".svg" => "image/svg+xml",
+            _ => null
+        };
     }
 
     // ── Background resolution ──────────────────────────────────────────

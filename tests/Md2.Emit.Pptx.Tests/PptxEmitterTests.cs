@@ -442,6 +442,52 @@ public class PptxEmitterTests
         pptx.PresentationPart.ShouldNotBeNull();
     }
 
+    // ── Header/Footer (#128) ────────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_HeaderDirective_CreatesHeaderShape()
+    {
+        var doc = new SlideDocument();
+        var pipeline = new MarkdownPipelineBuilder().Build();
+        var content = Markdig.Markdown.Parse("# Title", pipeline);
+        var slide = new CoreSlide(0, content);
+        slide.Directives.Header = "My Presentation";
+        doc.AddSlide(slide);
+
+        var emitter = new PptxEmitter();
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Shape>().ToList();
+        shapes.Any(s => s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.Contains("Header") == true)
+            .ShouldBeTrue("Should have a header shape");
+    }
+
+    [Fact]
+    public async Task EmitAsync_FooterDirective_CreatesFooterShape()
+    {
+        var doc = new SlideDocument();
+        var pipeline = new MarkdownPipelineBuilder().Build();
+        var content = Markdig.Markdown.Parse("# Title", pipeline);
+        var slide = new CoreSlide(0, content);
+        slide.Directives.Footer = "Confidential";
+        doc.AddSlide(slide);
+
+        var emitter = new PptxEmitter();
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Shape>().ToList();
+        shapes.Any(s => s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.Contains("Footer") == true)
+            .ShouldBeTrue("Should have a footer shape");
+    }
+
     // ── Null checks ─────────────────────────────────────────────────
 
     [Fact]

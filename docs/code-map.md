@@ -158,7 +158,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 
 | Area | Key Types | Notes |
 |------|----------|-------|
-| Emitter | `PptxEmitter : ISlideEmitter` | Theme-based layouts, backgrounds, fit headings, tables, blockquotes, code blocks, hyperlinks, build animations, slide numbers |
+| Emitter | `PptxEmitter : ISlideEmitter` | Full content types: headings, paragraphs, lists, tables, code blocks, blockquotes, hyperlinks, images, headers/footers, slide numbers, build animations |
 
 **External deps:** DocumentFormat.OpenXml
 
