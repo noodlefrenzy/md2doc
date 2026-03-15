@@ -42,13 +42,35 @@ public class MermaidThemeConfigTests
     }
 
     [Fact]
-    public void FromResolvedTheme_MapsTableHeaderForegroundToPrimaryTextColor()
+    public void FromResolvedTheme_DerivesPrimaryTextColorFromPrimaryForContrast()
     {
-        var theme = new ResolvedTheme { TableHeaderForeground = "AABBCC" };
+        // PrimaryTextColor should be derived for contrast against PrimaryColor (node background),
+        // not taken from TableHeaderForeground which is unrelated to diagram rendering.
+        var theme = new ResolvedTheme { PrimaryColor = "1B3A5C" }; // dark
 
         var config = MermaidThemeConfig.FromResolvedTheme(theme);
 
-        config.PrimaryTextColor.ShouldBe("AABBCC");
+        // Dark primary → light text
+        var r = Convert.ToInt32(config.PrimaryTextColor[..2], 16);
+        r.ShouldBeGreaterThan(180);
+    }
+
+    [Fact]
+    public void FromResolvedTheme_HacktermColors_DoesNotProduceGreenOnGreen()
+    {
+        // Hackterm: primary=00CC33 (green), tableHeaderForeground=00CC33 (green).
+        // Previously this produced green text on green node backgrounds.
+        var theme = new ResolvedTheme
+        {
+            PrimaryColor = "00CC33",
+            TableHeaderForeground = "00CC33",
+        };
+
+        var config = MermaidThemeConfig.FromResolvedTheme(theme);
+
+        // Node text should NOT be the same as the node background
+        config.PrimaryTextColor.ShouldNotBe(config.PrimaryColor,
+            "Mermaid node text must contrast with node background");
     }
 
     [Fact]
