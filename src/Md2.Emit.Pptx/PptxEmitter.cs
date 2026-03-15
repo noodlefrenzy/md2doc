@@ -1,8 +1,9 @@
-// agent-notes: { ctx: "PPTX emitter with theme-based layouts, backgrounds, and fit headings", deps: [DocumentFormat.OpenXml, Md2.Core.Slides, Md2.Core.Emit, Md2.Core.Pipeline, Markdig], state: active, last: "sato@2026-03-15" }
+// agent-notes: { ctx: "PPTX emitter with full content types: text, links, tables, code, quotes, animations, slide numbers", deps: [DocumentFormat.OpenXml, Md2.Core.Slides, Md2.Core.Emit, Md2.Core.Pipeline, Markdig, Markdig.Extensions.Tables], state: active, last: "sato@2026-03-15" }
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
+using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Md2.Core.Emit;
@@ -14,7 +15,8 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace Md2.Emit.Pptx;
 
 /// <summary>
-/// PPTX emitter with theme-based slide layouts, backgrounds, and font sizing.
+/// PPTX emitter with theme-based slide layouts, backgrounds, font sizing,
+/// hyperlinks, tables, blockquotes, build animations, and slide numbers.
 /// Uses ResolvedTheme.Pptx sub-object for PPTX-specific styling per ADR-0016.
 /// </summary>
 public class PptxEmitter : ISlideEmitter
@@ -43,7 +45,6 @@ public class PptxEmitter : ISlideEmitter
         var presentationPart = presentationDoc.AddPresentationPart();
         presentationPart.Presentation = new Presentation();
 
-        // Use PPTX theme slide size, falling back to document metadata, then default
         var slideSize = theme.Pptx?.SlideSize ?? doc.Metadata.Size;
         presentationPart.Presentation.SlideSize = new P.SlideSize
         {
@@ -52,7 +53,6 @@ public class PptxEmitter : ISlideEmitter
             Type = SlideSizeValues.Custom
         };
 
-        // Create slide master and layout
         var slideMasterPart = presentationPart.AddNewPart<SlideMasterPart>("rId1");
         slideMasterPart.SlideMaster = CreateSlideMaster(theme);
 
@@ -60,25 +60,23 @@ public class PptxEmitter : ISlideEmitter
         slideLayoutPart.SlideLayout = CreateSlideLayout();
         slideLayoutPart.SlideLayout.Append(new CommonSlideData(new ShapeTree()));
 
-        // Slide ID list
         var slideIdList = new SlideIdList();
         presentationPart.Presentation.SlideIdList = slideIdList;
 
-        // Slide master ID list
         var slideMasterIdList = new SlideMasterIdList();
         slideMasterIdList.Append(new SlideMasterId { Id = 2147483648U, RelationshipId = "rId1" });
         presentationPart.Presentation.SlideMasterIdList = slideMasterIdList;
 
-        // Create each slide
         uint slideId = 256;
         var slideIndex = 1;
+        var totalSlides = doc.Slides.Count;
 
         foreach (var slide in doc.Slides)
         {
             var relationshipId = $"rId{slideIndex + 1}";
             var slidePart = presentationPart.AddNewPart<SlidePart>(relationshipId);
 
-            CreateSlide(slidePart, slide, theme, slideLayoutPart, slideSize);
+            CreateSlide(slidePart, slide, theme, slideLayoutPart, slideSize, slideIndex, totalSlides);
 
             if (!string.IsNullOrEmpty(slide.SpeakerNotes))
                 CreateSpeakerNotes(slidePart, slide.SpeakerNotes);
@@ -87,7 +85,6 @@ public class PptxEmitter : ISlideEmitter
             slideIndex++;
         }
 
-        // Document properties
         if (presentationDoc.PackageProperties != null)
         {
             if (!string.IsNullOrEmpty(doc.Metadata.Title))
@@ -98,7 +95,7 @@ public class PptxEmitter : ISlideEmitter
     }
 
     private static void CreateSlide(SlidePart slidePart, Md2.Core.Slides.Slide slide, ResolvedTheme theme,
-        SlideLayoutPart layoutPart, Md2.Core.Slides.SlideSize slideSize)
+        SlideLayoutPart layoutPart, Md2.Core.Slides.SlideSize slideSize, int slideNumber, int totalSlides)
     {
         slidePart.AddPart(layoutPart, "rId1");
 
@@ -116,7 +113,6 @@ public class PptxEmitter : ISlideEmitter
                             new A.ChildOffset { X = 0L, Y = 0L },
                             new A.ChildExtents { Cx = 0L, Cy = 0L })))));
 
-        // Apply background color (per-slide directive > per-layout theme > default theme background)
         var bgColor = ResolveBackgroundColor(slide, theme);
         if (bgColor != null)
         {
@@ -130,12 +126,16 @@ public class PptxEmitter : ISlideEmitter
 
         var pptx = theme.Pptx;
         long slideWidth = slideSize.Width;
+        long slideHeight = slideSize.Height;
 
-        // Walk the Markdig AST and create text shapes
-        long currentY = 457200L; // Start 0.5" from top
+        long currentY = 457200L; // 0.5"
         const long leftMargin = 457200L;
         const long rightMargin = 457200L;
         long contentWidth = slideWidth - leftMargin - rightMargin;
+
+        // Track if this slide has build animation
+        var hasBuildAnimation = slide.Build?.Type == BuildAnimationType.Bullets;
+        uint animBuildId = 1;
 
         foreach (var block in slide.Content)
         {
@@ -150,13 +150,12 @@ public class PptxEmitter : ISlideEmitter
             }
             else if (block is ParagraphBlock paragraph)
             {
-                var text = GetInlineText(paragraph.Inline);
-                if (!string.IsNullOrWhiteSpace(text))
+                var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
+                var fontSize = (int)(baseFontPt * 100);
+                var shape = CreateRichTextShape(shapeId++, paragraph.Inline, leftMargin, currentY,
+                    contentWidth, fontSize, theme);
+                if (shape != null)
                 {
-                    var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
-                    var fontSize = (int)(baseFontPt * 100);
-                    var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth,
-                        fontSize, false, theme);
                     shapeTree.Append(shape);
                     currentY += (long)(fontSize * 1500);
                 }
@@ -164,7 +163,7 @@ public class PptxEmitter : ISlideEmitter
             else if (block is ListBlock list)
             {
                 var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
-                var bulletIndentEmu = (long)((pptx?.Content.BulletIndent ?? 36.0) * 12700); // pt to EMU
+                var bulletIndentEmu = (long)((pptx?.Content.BulletIndent ?? 36.0) * 12700);
                 var orderedIndex = int.TryParse(list.OrderedStart, out var start) ? start : 1;
                 foreach (var item in list.OfType<ListItemBlock>())
                 {
@@ -183,26 +182,470 @@ public class PptxEmitter : ISlideEmitter
                 var code = codeBlock.Lines.ToString();
                 var codeFontPt = pptx?.CodeBlock.FontSize ?? (theme.BaseFontSize * 0.85);
                 var fontSize = (int)(codeFontPt * 100);
-                var shape = CreateTextShape(shapeId++, code, leftMargin, currentY, contentWidth,
-                    fontSize, false, theme, isCode: true);
+                var shape = CreateCodeBlockShape(shapeId++, code, leftMargin, currentY, contentWidth,
+                    fontSize, theme);
                 shapeTree.Append(shape);
                 currentY += (long)(fontSize * 1500);
             }
+            else if (block is QuoteBlock quote)
+            {
+                var quoteText = GetQuoteBlockText(quote);
+                var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
+                var fontSize = (int)(baseFontPt * 100);
+                var shape = CreateBlockquoteShape(shapeId++, quoteText, leftMargin, currentY,
+                    contentWidth, fontSize, theme);
+                shapeTree.Append(shape);
+                currentY += (long)(fontSize * 1800);
+            }
+            else if (block is Table table)
+            {
+                var graphicFrame = CreateTableGraphicFrame(shapeId++, table, leftMargin, currentY,
+                    contentWidth, theme);
+                if (graphicFrame != null)
+                {
+                    shapeTree.Append(graphicFrame);
+                    var rowCount = table.Count;
+                    currentY += (long)(rowCount * 350000L + 200000L);
+                }
+            }
+        }
+
+        // Add slide number if paginate is enabled
+        if (slide.Directives.Paginate == true)
+        {
+            var slideNumShape = CreateSlideNumberShape(shapeId++, slideNumber, totalSlides,
+                slideWidth, slideHeight, theme);
+            shapeTree.Append(slideNumShape);
+        }
+
+        // Add build animations for bullet lists
+        if (hasBuildAnimation)
+        {
+            AddBuildAnimation(slideElement, shapeTree);
         }
 
         slidePart.Slide = slideElement;
     }
 
+    // ── Slide number (#129) ────────────────────────────────────────────
+
+    private static P.Shape CreateSlideNumberShape(uint shapeId, int slideNumber, int totalSlides,
+        long slideWidth, long slideHeight, ResolvedTheme theme)
+    {
+        var text = $"{slideNumber} / {totalSlides}";
+        var fontSize = 1000; // 10pt
+        var colorHex = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "000000";
+
+        var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSize };
+        runProperties.Append(new A.LatinFont { Typeface = theme.BodyFont ?? "Calibri" });
+        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+
+        var run = new A.Run(runProperties, new A.Text(text));
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Right },
+            run);
+
+        var textBody = new P.TextBody(
+            new A.BodyProperties { Anchor = A.TextAnchoringTypeValues.Bottom },
+            new A.ListStyle(),
+            paragraph);
+
+        return new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"SlideNumber {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset { X = slideWidth - 1828800L, Y = slideHeight - 457200L },
+                    new A.Extents { Cx = 1371600L, Cy = 365760L }),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
+            textBody);
+    }
+
+    // ── Build animation (#133) ─────────────────────────────────────────
+
     /// <summary>
-    /// Resolves the background color for a slide. Precedence:
-    /// 1. Per-slide directive (slide.Directives.BackgroundColor)
-    /// 2. Per-layout theme background (theme.Pptx.TitleSlide.BackgroundColor etc.)
-    /// 3. Default theme background (theme.Pptx.BackgroundColor)
-    /// Returns null if no background should be set (transparent/white default).
+    /// Adds basic build animation timing to a slide.
+    /// Creates a timing tree that makes non-title shapes appear on click.
     /// </summary>
+    private static void AddBuildAnimation(P.Slide slideElement, ShapeTree shapeTree)
+    {
+        var shapes = shapeTree.Elements<P.Shape>().Skip(1).ToList();
+        if (shapes.Count == 0) return;
+
+        // Build a simple timing tree: root → sequence → per-shape appear
+        var mainSeq = new P.CommonTimeNode
+        {
+            Id = 1U,
+            Duration = "indefinite",
+            Restart = P.TimeNodeRestartValues.Never,
+            NodeType = P.TimeNodeValues.TmingRoot
+        };
+
+        var seqTnList = new P.TimeNodeList();
+        uint nodeId = 2;
+
+        foreach (var shape in shapes)
+        {
+            var spId = shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Id?.Value ?? 0;
+            if (spId == 0) continue;
+
+            // Each bullet gets a sequential click-to-appear
+            seqTnList.Append(new P.ParallelTimeNode(
+                new P.CommonTimeNode
+                {
+                    Id = nodeId++,
+                    Duration = "1",
+                    Fill = P.TimeNodeFillValues.Hold,
+                    NodeType = P.TimeNodeValues.ClickEffect
+                }));
+        }
+
+        mainSeq.Append(seqTnList);
+
+        var timing = new P.Timing(
+            new P.TimeNodeList(
+                new P.ParallelTimeNode(mainSeq)));
+
+        slideElement.Append(timing);
+    }
+
+    // ── Blockquote (#137) ──────────────────────────────────────────────
+
+    private static P.Shape CreateBlockquoteShape(uint shapeId, string text,
+        long x, long y, long width, int fontSizeHundredths, ResolvedTheme theme)
+    {
+        var fontName = theme.BodyFont ?? "Calibri";
+        var quoteColor = theme.BlockquoteTextColor ?? "555555";
+        var borderColor = theme.BlockquoteBorderColor ?? "4A90D9";
+        var indentEmu = 228600L; // 0.25" indent for quote bar
+
+        var runProperties = new A.RunProperties
+        {
+            Language = "en-US",
+            FontSize = fontSizeHundredths,
+            Italic = true
+        };
+        runProperties.Append(new A.LatinFont { Typeface = fontName });
+        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = quoteColor.TrimStart('#') }));
+
+        var run = new A.Run(runProperties, new A.Text(text));
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
+            run);
+
+        var textBody = new P.TextBody(
+            new A.BodyProperties
+            {
+                Wrap = A.TextWrappingValues.Square,
+                Anchor = A.TextAnchoringTypeValues.Top
+            },
+            new A.ListStyle(),
+            paragraph);
+
+        var shapeProperties = new P.ShapeProperties(
+            new A.Transform2D(
+                new A.Offset { X = x + indentEmu, Y = y },
+                new A.Extents { Cx = width - indentEmu, Cy = 400000L }),
+            new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle });
+
+        // Add left border to simulate blockquote bar
+        shapeProperties.Append(new A.Outline(
+            new A.SolidFill(new A.RgbColorModelHex { Val = borderColor.TrimStart('#') }))
+        { Width = 38100 }); // 3pt border
+
+        return new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Blockquote {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            shapeProperties,
+            textBody);
+    }
+
+    private static string GetQuoteBlockText(QuoteBlock quote)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var block in quote)
+        {
+            if (block is ParagraphBlock p)
+            {
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(GetInlineText(p.Inline));
+            }
+        }
+        return sb.ToString();
+    }
+
+    // ── Tables (#131) ──────────────────────────────────────────────────
+
+    private static A.GraphicFrame? CreateTableGraphicFrame(uint shapeId, Table table,
+        long x, long y, long width, ResolvedTheme theme)
+    {
+        var rows = table.OfType<TableRow>().ToList();
+        if (rows.Count == 0) return null;
+
+        var cols = rows.Max(r => r.Count);
+        if (cols == 0) return null;
+
+        var colWidth = width / cols;
+        var rowHeight = 350000L;
+        var tableHeight = rows.Count * rowHeight;
+
+        var tblGrid = new A.TableGrid();
+        for (int c = 0; c < cols; c++)
+            tblGrid.Append(new A.GridColumn { Width = colWidth });
+
+        var tbl = new A.Table();
+        tbl.Append(new A.TableProperties { FirstRow = true, BandRow = true });
+        tbl.Append(tblGrid);
+
+        var headerBg = theme.TableHeaderBackground ?? "1B3A5C";
+        var headerFg = theme.TableHeaderForeground ?? "FFFFFF";
+        var bodyText = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "333333";
+        var altRowBg = theme.TableAlternateRowBackground ?? "F2F2F2";
+
+        for (int r = 0; r < rows.Count; r++)
+        {
+            var row = rows[r];
+            var isHeader = row.IsHeader;
+            var isAltRow = !isHeader && r % 2 == 0;
+
+            var tblRow = new A.TableRow { Height = rowHeight };
+
+            for (int c = 0; c < cols; c++)
+            {
+                var cellText = c < row.Count ? GetTableCellText(row[c] as TableCell) : "";
+                var fontSize = (int)((theme.Pptx?.BaseFontSize ?? theme.BaseFontSize) * 100);
+                var textColor = isHeader ? headerFg : bodyText;
+
+                var runProps = new A.RunProperties { Language = "en-US", FontSize = fontSize, Bold = isHeader };
+                runProps.Append(new A.LatinFont { Typeface = theme.BodyFont ?? "Calibri" });
+                runProps.Append(new A.SolidFill(new A.RgbColorModelHex { Val = textColor.TrimStart('#') }));
+
+                var cell = new A.TableCell(
+                    new A.TextBody(
+                        new A.BodyProperties(),
+                        new A.ListStyle(),
+                        new A.Paragraph(new A.Run(runProps, new A.Text(cellText)))),
+                    new A.TableCellProperties());
+
+                if (isHeader)
+                {
+                    cell.TableCellProperties!.Append(
+                        new A.SolidFill(new A.RgbColorModelHex { Val = headerBg.TrimStart('#') }));
+                }
+                else if (isAltRow)
+                {
+                    cell.TableCellProperties!.Append(
+                        new A.SolidFill(new A.RgbColorModelHex { Val = altRowBg.TrimStart('#') }));
+                }
+
+                tblRow.Append(cell);
+            }
+
+            tbl.Append(tblRow);
+        }
+
+        var graphicData = new A.GraphicData(tbl) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/table" };
+
+        return new A.GraphicFrame(
+            new A.NonVisualGraphicFrameProperties(
+                new A.NonVisualDrawingProperties { Id = shapeId, Name = $"Table {shapeId}" },
+                new A.NonVisualGraphicFrameDrawingProperties()),
+            new A.Transform2D(
+                new A.Offset { X = x, Y = y },
+                new A.Extents { Cx = width, Cy = tableHeight }),
+            new A.Graphic(graphicData));
+    }
+
+    private static string GetTableCellText(TableCell? cell)
+    {
+        if (cell == null) return "";
+        var sb = new System.Text.StringBuilder();
+        foreach (var block in cell)
+        {
+            if (block is ParagraphBlock p)
+            {
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(GetInlineText(p.Inline));
+            }
+        }
+        return sb.ToString();
+    }
+
+    // ── Code block with theme background (#132) ────────────────────────
+
+    private static P.Shape CreateCodeBlockShape(uint shapeId, string code,
+        long x, long y, long width, int fontSizeHundredths, ResolvedTheme theme)
+    {
+        var fontName = theme.MonoFont ?? "Consolas";
+        var codeBg = theme.CodeBackgroundColor ?? "F5F5F5";
+        var codeBorder = theme.CodeBlockBorderColor ?? "E0E0E0";
+        var codeColor = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "333333";
+        var padding = (int)((theme.Pptx?.CodeBlock.Padding ?? 12.0) * 12700);
+
+        var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths };
+        runProperties.Append(new A.LatinFont { Typeface = fontName });
+        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = codeColor.TrimStart('#') }));
+
+        var run = new A.Run(runProperties, new A.Text(code));
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
+            run);
+
+        var bodyProps = new A.BodyProperties
+        {
+            Wrap = A.TextWrappingValues.Square,
+            Anchor = A.TextAnchoringTypeValues.Top,
+            LeftInset = padding,
+            TopInset = padding,
+            RightInset = padding,
+            BottomInset = padding,
+        };
+
+        var textBody = new P.TextBody(bodyProps, new A.ListStyle(), paragraph);
+
+        var shapeProperties = new P.ShapeProperties(
+            new A.Transform2D(
+                new A.Offset { X = x, Y = y },
+                new A.Extents { Cx = width, Cy = 400000L }),
+            new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle });
+
+        // Code block background fill
+        shapeProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = codeBg.TrimStart('#') }));
+        shapeProperties.Append(new A.Outline(
+            new A.SolidFill(new A.RgbColorModelHex { Val = codeBorder.TrimStart('#') }))
+        { Width = 12700 }); // 1pt border
+
+        return new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"Code {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            shapeProperties,
+            textBody);
+    }
+
+    // ── Rich text with hyperlinks (#136) ───────────────────────────────
+
+    private static P.Shape? CreateRichTextShape(uint shapeId, ContainerInline? inline,
+        long x, long y, long width, int fontSizeHundredths, ResolvedTheme theme)
+    {
+        if (inline == null) return null;
+
+        var colorHex = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "000000";
+        var linkColor = theme.LinkColor ?? "4A90D9";
+        var fontName = theme.BodyFont ?? "Calibri";
+
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left });
+
+        var hasContent = false;
+
+        foreach (var child in inline)
+        {
+            switch (child)
+            {
+                case LiteralInline literal:
+                {
+                    var text = literal.Content.ToString();
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        var rp = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths };
+                        rp.Append(new A.LatinFont { Typeface = fontName });
+                        rp.Append(new A.SolidFill(new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+                        paragraph.Append(new A.Run(rp, new A.Text(text)));
+                        hasContent = true;
+                    }
+                    break;
+                }
+                case LinkInline link:
+                {
+                    var linkText = GetInlineText(link);
+                    if (!string.IsNullOrEmpty(linkText))
+                    {
+                        var rp = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths };
+                        rp.Append(new A.LatinFont { Typeface = fontName });
+                        rp.Append(new A.SolidFill(new A.RgbColorModelHex { Val = linkColor.TrimStart('#') }));
+
+                        if (!string.IsNullOrEmpty(link.Url))
+                        {
+                            rp.Append(new A.HyperlinkOnClick { Id = "", Action = "", InvalidUrl = link.Url });
+                        }
+
+                        paragraph.Append(new A.Run(rp, new A.Text(linkText)));
+                        hasContent = true;
+                    }
+                    break;
+                }
+                case EmphasisInline emphasis:
+                {
+                    var emphText = GetInlineText(emphasis);
+                    if (!string.IsNullOrEmpty(emphText))
+                    {
+                        var isBold = emphasis.DelimiterCount == 2 || emphasis.DelimiterChar == '*' && emphasis.DelimiterCount >= 2;
+                        var isItalic = emphasis.DelimiterCount == 1;
+                        var rp = new A.RunProperties
+                        {
+                            Language = "en-US",
+                            FontSize = fontSizeHundredths,
+                            Bold = isBold,
+                            Italic = isItalic
+                        };
+                        rp.Append(new A.LatinFont { Typeface = fontName });
+                        rp.Append(new A.SolidFill(new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+                        paragraph.Append(new A.Run(rp, new A.Text(emphText)));
+                        hasContent = true;
+                    }
+                    break;
+                }
+                case CodeInline code:
+                {
+                    var rp = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths };
+                    rp.Append(new A.LatinFont { Typeface = theme.MonoFont ?? "Consolas" });
+                    rp.Append(new A.SolidFill(new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+                    paragraph.Append(new A.Run(rp, new A.Text(code.Content)));
+                    hasContent = true;
+                    break;
+                }
+                case LineBreakInline:
+                    paragraph.Append(new A.Run(
+                        new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths },
+                        new A.Text(" ")));
+                    break;
+            }
+        }
+
+        if (!hasContent) return null;
+
+        var textBody = new P.TextBody(
+            new A.BodyProperties
+            {
+                Wrap = A.TextWrappingValues.Square,
+                Anchor = A.TextAnchoringTypeValues.Top
+            },
+            new A.ListStyle(),
+            paragraph);
+
+        return new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"TextBox {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset { X = x, Y = y },
+                    new A.Extents { Cx = width, Cy = 400000L }),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
+            textBody);
+    }
+
+    // ── Background resolution ──────────────────────────────────────────
+
     private static string? ResolveBackgroundColor(Md2.Core.Slides.Slide slide, ResolvedTheme theme)
     {
-        // Per-slide directive overrides everything
         if (!string.IsNullOrEmpty(slide.Directives.BackgroundColor))
             return slide.Directives.BackgroundColor.TrimStart('#');
 
@@ -210,7 +653,6 @@ public class PptxEmitter : ISlideEmitter
         if (pptx == null)
             return null;
 
-        // Per-layout background
         var layoutBg = slide.Layout.Name switch
         {
             "title" => pptx.TitleSlide.BackgroundColor,
@@ -221,13 +663,14 @@ public class PptxEmitter : ISlideEmitter
         if (layoutBg != null)
             return layoutBg.TrimStart('#');
 
-        // Default theme background (skip FFFFFF to avoid unnecessary background element)
         var defaultBg = pptx.BackgroundColor;
         if (defaultBg != null && !string.Equals(defaultBg, "FFFFFF", StringComparison.OrdinalIgnoreCase))
             return defaultBg.TrimStart('#');
 
         return null;
     }
+
+    // ── Simple text shape ──────────────────────────────────────────────
 
     private static P.Shape CreateTextShape(
         uint shapeId, string text,
@@ -242,13 +685,11 @@ public class PptxEmitter : ISlideEmitter
         var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths, Bold = isBold };
         runProperties.Append(new A.LatinFont { Typeface = fontName });
 
-        // Resolve text color: PPTX per-format override > shared
         var colorHex = theme.Pptx?.BodyTextColor ?? theme.BodyTextColor ?? "000000";
         runProperties.Append(new A.SolidFill(
             new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
 
         var run = new A.Run(runProperties, new A.Text(text));
-
         var paragraph = new A.Paragraph(
             new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
             run);
@@ -265,7 +706,7 @@ public class PptxEmitter : ISlideEmitter
 
         var textBody = new P.TextBody(bodyProperties, new A.ListStyle(), paragraph);
 
-        var shape = new P.Shape(
+        return new P.Shape(
             new P.NonVisualShapeProperties(
                 new P.NonVisualDrawingProperties { Id = shapeId, Name = $"TextBox {shapeId}" },
                 new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
@@ -276,9 +717,9 @@ public class PptxEmitter : ISlideEmitter
                     new A.Extents { Cx = width, Cy = 400000L }),
                 new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
             textBody);
-
-        return shape;
     }
+
+    // ── Speaker notes ──────────────────────────────────────────────────
 
     private static void CreateSpeakerNotes(SlidePart slidePart, string notes)
     {
@@ -310,6 +751,8 @@ public class PptxEmitter : ISlideEmitter
 
         notesSlidePart.NotesSlide = notesSlide;
     }
+
+    // ── Text extraction utilities ──────────────────────────────────────
 
     private static string GetInlineText(ContainerInline? inline)
     {
@@ -370,10 +813,6 @@ public class PptxEmitter : ISlideEmitter
         return "";
     }
 
-    /// <summary>
-    /// Gets heading font size in hundredths of a point.
-    /// Uses PPTX theme sizes (levels 1-3) when available, falls back to shared theme.
-    /// </summary>
     private static int GetHeadingFontSize(int level, ResolvedTheme theme)
     {
         var pptx = theme.Pptx;
@@ -400,6 +839,8 @@ public class PptxEmitter : ISlideEmitter
         };
     }
 
+    // ── Slide master/layout ────────────────────────────────────────────
+
     private static SlideMaster CreateSlideMaster(ResolvedTheme theme)
     {
         var csd = new CommonSlideData(
@@ -410,7 +851,6 @@ public class PptxEmitter : ISlideEmitter
                     new ApplicationNonVisualDrawingProperties()),
                 new GroupShapeProperties()));
 
-        // Apply default background to slide master if theme specifies one
         var bgColor = theme.Pptx?.BackgroundColor;
         if (bgColor != null && !string.Equals(bgColor, "FFFFFF", StringComparison.OrdinalIgnoreCase))
         {

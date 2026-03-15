@@ -316,6 +316,132 @@ public class PptxEmitterTests
         runs.First().RunProperties!.FontSize!.Value.ShouldBe(6000); // 60pt * 100
     }
 
+    // ── Blockquotes (#137) ─────────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_Blockquote_CreatesShape()
+    {
+        var doc = CreateSimpleDoc("# Title\n\n> This is a quote");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Shape>().ToList();
+        // Should have at least 2 shapes: heading + blockquote
+        shapes.Count.ShouldBeGreaterThanOrEqualTo(2);
+    }
+
+    // ── Tables (#131) ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_Table_ProducesValidPptx()
+    {
+        var doc = CreateSimpleDoc("# Data\n\n| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Length.ShouldBeGreaterThan(0);
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        pptx.PresentationPart.ShouldNotBeNull();
+    }
+
+    // ── Slide numbers (#129) ─────────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_PaginateEnabled_HasSlideNumberShape()
+    {
+        var doc = new SlideDocument();
+        var pipeline = new MarkdownPipelineBuilder().Build();
+        var content = Markdig.Markdown.Parse("# Slide 1", pipeline);
+        var slide = new CoreSlide(0, content);
+        slide.Directives.Paginate = true;
+        doc.AddSlide(slide);
+
+        var emitter = new PptxEmitter();
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Shape>().ToList();
+        // Should have heading + slide number
+        shapes.Count.ShouldBeGreaterThanOrEqualTo(2);
+        shapes.Any(s => s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.Contains("SlideNumber") == true)
+            .ShouldBeTrue("Should have a slide number shape");
+    }
+
+    // ── Build animation (#133) ───────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_BuildAnimationBullets_HasTiming()
+    {
+        var doc = new SlideDocument();
+        var pipeline = new MarkdownPipelineBuilder().Build();
+        var content = Markdig.Markdown.Parse("# Title\n\n- Item 1\n- Item 2\n- Item 3", pipeline);
+        var slide = new CoreSlide(0, content)
+        {
+            Build = new Md2.Core.Slides.BuildAnimation(Md2.Core.Slides.BuildAnimationType.Bullets)
+        };
+        doc.AddSlide(slide);
+
+        var emitter = new PptxEmitter();
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        slidePart.Slide.Timing.ShouldNotBeNull("Slide with build animation should have timing");
+    }
+
+    // ── Code block styling (#132) ────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_CodeBlock_HasBackgroundFill()
+    {
+        var doc = CreateSimpleDoc("# Code\n\n```python\nprint('hello')\n```");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapes = slidePart.Slide.CommonSlideData!.ShapeTree!.Elements<Shape>().ToList();
+        // Code shape should have a fill
+        var codeShape = shapes.FirstOrDefault(s =>
+            s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("Code") == true);
+        codeShape.ShouldNotBeNull("Should have a code block shape");
+        codeShape.ShapeProperties!.Elements<DocumentFormat.OpenXml.Drawing.SolidFill>().Any()
+            .ShouldBeTrue("Code block should have background fill");
+    }
+
+    // ── Rich text with links (#136) ──────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_Hyperlink_ProducesValidPptx()
+    {
+        var doc = CreateSimpleDoc("Visit [Google](https://google.com) for more.");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Length.ShouldBeGreaterThan(0);
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        pptx.PresentationPart.ShouldNotBeNull();
+    }
+
     // ── Null checks ─────────────────────────────────────────────────
 
     [Fact]

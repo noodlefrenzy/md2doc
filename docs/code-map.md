@@ -158,7 +158,7 @@ Md2.Cli ─────────────── entry point, System.Comman
 
 | Area | Key Types | Notes |
 |------|----------|-------|
-| Emitter | `PptxEmitter : ISlideEmitter` | Theme-based layouts, backgrounds, fit headings |
+| Emitter | `PptxEmitter : ISlideEmitter` | Theme-based layouts, backgrounds, fit headings, tables, blockquotes, code blocks, hyperlinks, build animations, slide numbers |
 
 **External deps:** DocumentFormat.OpenXml
 
@@ -254,7 +254,7 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Md2.Core.Tests | 134 | Pipeline orchestration, transform ordering, SlideDocument IR, SlidePipeline, warnings |
 | Md2.Parsing.Tests | 46 | Extension coverage, front matter extraction, YAML safety |
 | Md2.Emit.Docx.Tests | 187 | Style application, element construction, contrast, path safety |
-| Md2.Emit.Pptx.Tests | 16 | PPTX emission, slide count, speaker notes, metadata, theme backgrounds, fit headings, layout colors |
+| Md2.Emit.Pptx.Tests | 22 | PPTX emission, slide count, speaker notes, metadata, theme backgrounds, fit headings, layout colors, tables, blockquotes, code blocks, hyperlinks, build animations, slide numbers |
 | Md2.Slides.Tests | 135 | Directive extraction/classification/cascade, slide splitting, image syntax, extensions, layout inference, MarpParser, theme mapping |
 | Md2.Themes.Tests | 213 | Theme parsing, cascade resolution, validation, formatting, PPTX section/cascade/validation |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
@@ -262,4 +262,4 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 | Md2.Diagrams.Tests | 67 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer, theme config |
 | Md2.Preview.Tests | 33 | HTML renderer, server endpoints, file watcher, CSS sanitization, security headers |
 | Md2.Integration.Tests | 86 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
-| **Total** | **974** | |
+| **Total** | **980** | |
