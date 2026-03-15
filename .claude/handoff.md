@@ -1,6 +1,6 @@
 ---
 agent-notes:
-  ctx: "Session handoff — PPTX v2 Sprint 1 complete"
+  ctx: "Session handoff — PPTX v2 Sprint 3 complete, Sprint 4 partial"
   deps: [CLAUDE.md, docs/plans/v2-pptx-implementation-plan.md, docs/code-map.md]
   state: active
   last: "grace@2026-03-15"
@@ -8,79 +8,70 @@ agent-notes:
 # Session Handoff
 
 **Created:** 2026-03-15
-**Sprint:** v2-1 (PPTX)
-**Wave:** 1 of 1 (Sprint 1 was a single wave)
-**Session summary:** Completed all 6 Sprint 1 issues — created pptx/v2 branch, validated both architectural spikes (AST reparenting + list marker detection), implemented SlideDocument IR types, SlidePipeline orchestrator, and ISlideEmitter interface. Also committed all prior architecture/planning work (ADRs 0014-0016, v2 plan, threat model, test strategy).
+**Sprint:** v2-4 (PPTX)
+**Wave:** 1 of 2 complete
+**Session summary:** Completed all 8 Sprint 3 issues (theme integration) and 6 of 10 Sprint 4 issues (content types). Total 47 new tests added this session.
 
 ## What Was Done
-- **Branch setup:** Created `pptx/v2` integration branch off `main`, added to CI triggers
-- **Architecture docs committed:** ADRs 0014 (SlideDocument IR), 0015 (MARP Parser), 0016 (Unified Theme PPTX Extension), v2 implementation plan, updated threat model, tech debt register, and test strategy
-- **Spike #104 (AST reparenting):** PASS — Markdig AST nodes can be safely reparented into per-slide fragments. SetData annotations survive. SyntaxHighlightAnnotator works on fragments. Key finding: must snapshot block list before mutation (10 tests)
-- **Spike #105 (list marker detection):** PASS — Markdig preserves `ListBlock.BulletType` (`-` vs `*`). Mixed markers produce separate `ListBlock` instances. No custom extension needed (10 tests)
-- **#107 SlideDocument IR types:** `SlideDocument`, `Slide`, `SlideLayout` (open record), `SlideDirectives`, `PresentationMetadata`, `SlideSize`, `BuildAnimation`, `SlideTransition`, `IDocumentMetadata` interface. `DocumentMetadata` now implements `IDocumentMetadata` (31 tests)
-- **#108 SlidePipeline:** Parse → Transform → BuildSlideDocument → Emit orchestrator. Splits at `ThematicBreakBlock` using validated snapshot-then-reparent pattern (12 tests)
-- **#109 ISlideEmitter:** Interface parallel to `IFormatEmitter` but accepting `SlideDocument` (2 tests)
+- **Sprint 3 (complete):**
+  - ThemePptxSection YAML schema with nested layout sections (#120)
+  - ResolvedPptxTheme sub-object per ADR-0016 (#121)
+  - pptx: sections added to all 10 presets with preset-appropriate styling (#122)
+  - Slide master/layout generation with theme-based backgrounds (#123)
+  - Speaker notes emission (already working, verified) (#124)
+  - `<!-- fit -->` heading auto-scale via NormalAutoFit (#125)
+  - MarpThemeMapper: MARP theme → md2 preset hint mapping (#126)
+  - PPTX style overrides in CLI theme resolve command (#127)
+  - ThemeValidator extended for pptx: section validation
+  - ThemeCascadeResolver extended with PPTX sub-object cascade
+  - Preset snapshots regenerated
+
+- **Sprint 4 Wave 1 (6 issues complete):**
+  - Native PPTX tables with theme-styled header/alternating rows (#131)
+  - Code blocks with background fill, border, and padding (#132)
+  - Build animations (bullet reveal timing tree) (#133)
+  - Blockquote shapes with left border bar (#137)
+  - Rich text paragraphs with clickable hyperlinks (#136)
+  - Slide numbers via paginate directive (#129)
 
 ## Current State
 - **Branch:** `pptx/v2`
-- **Last commit:** `302a098` feat: implement ISlideEmitter interface and SlidePipeline orchestrator
+- **Last commit:** `c77d445` feat: implement Sprint 4 — tables, blockquotes, code blocks, hyperlinks, slide numbers, build animations
 - **Uncommitted changes:** none (clean tree)
-- **Tests:** 134 passing in `Md2.Core.Tests` (71 existing + 63 new). 732+ across all test projects (Diagrams tests have pre-existing Playwright flakes in devcontainer)
-- **Board status:** All 6 Sprint 1 issues at Done on v2 board (#15). Sprint 2 issues at Backlog.
-- **Product context:** `docs/product-context.md` exists (last updated 2026-03-11)
+- **Tests:** 980 total across non-Playwright projects (22 Pptx, 213 Themes, 135 Slides, 134 Core, etc.)
+- **Board status:** Sprint 3 issues at Done (#120-#127). Sprint 4 P0 issues at Done (#128-#133). Sprint 4 P1 issues at Backlog (#134-#137).
 
 ## Sprint Progress
-- **Wave plan:** `docs/plans/v2-pptx-implementation-plan.md`
-- **Sprint 1:** COMPLETE — all 6 issues done
-- **Issues completed this session:** #104, #105, #106, #107, #108, #109
-- **Issues remaining:** None for Sprint 1
-- **Next sprint:** Sprint 2 — MARP Parser + Basic PPTX Emitter (10 issues)
+- **Sprint 1:** COMPLETE
+- **Sprint 2:** COMPLETE
+- **Sprint 3:** COMPLETE
+- **Sprint 4:** 6/10 complete. Remaining: #128 (headers/footers), #130 (logos), #134 (background images), #135 (inline images)
+- **Next:** Sprint 4 Wave 2 (remaining 4 issues), then Sprint 5 or sprint boundary
 
 ## What To Do Next (in order)
 1. Read `docs/code-map.md` to orient
-2. Read `docs/product-context.md` for human's product philosophy
-3. Read `docs/plans/v2-pptx-implementation-plan.md` §Sprint 2 for issue list
-4. **Create `Md2.Slides` project and test project:**
-   - New project: `src/Md2.Slides/Md2.Slides.csproj` — depends on `Md2.Core`, `Md2.Parsing`, `Markdig`, `YamlDotNet`
-   - New test project: `tests/Md2.Slides.Tests/Md2.Slides.Tests.csproj`
-   - Add both to `md2.sln`
-   - Package structure per ADR-0015: `MarpParser.cs`, `Directives/`, `MarpSlideExtractor.cs`, etc.
-5. **Sprint 2 issues (10 issues, need to move from Backlog → Ready first):**
+2. **Sprint 4 Wave 2 (4 remaining issues):**
+   - #128 (M): Header/footer rendering — MARP header/footer directives + md2 extension for positioned content
+   - #130 (M): Logo support in headers/footers — inline images + md2 extension for positioned logos
+   - #134 (M): Background images — `![bg cover](img.jpg)`, `![bg left:30%](img.jpg)` → PPTX image fill
+   - #135 (S): Inline images — `![alt](img.jpg)` with w:/h: sizing → embedded PPTX images
+3. After Sprint 4, run `/sprint-boundary`
+4. Sprint 5: Mermaid native shapes + charts (v2.1 scope, 6 issues)
+5. Sprint 6: Integration, docs, ship (7 issues)
 
-   | # | GitHub Issue | Title | Size | Priority |
-   |---|-------------|-------|------|----------|
-   | 7 | (check board) | MarpParser top-level | M | P0 |
-   | 8 | | MarpDirectiveExtractor | M | P0 |
-   | 9 | | MarpDirectiveClassifier | S | P0 |
-   | 10 | | MarpDirectiveCascader | M | P0 |
-   | 11 | | MarpSlideExtractor | M | P0 |
-   | 12 | | MarpImageSyntax parser | M | P1 |
-   | 13 | | MarpExtensionParser | S | P1 |
-   | 14 | | SlideLayoutInferrer | S | P1 |
-   | 15 | | Basic PptxEmitter (text only) | L | P0 |
-   | 16 | | Wire PPTX path in CLI | S | P0 |
-
-6. **Suggested wave breakdown for Sprint 2:**
-   - Wave 1: #8 (DirectiveExtractor) + #9 (Classifier) + #10 (Cascader) — directive subsystem
-   - Wave 2: #11 (SlideExtractor) + #12 (ImageSyntax) + #13 (ExtensionParser) + #14 (LayoutInferrer)
-   - Wave 3: #7 (MarpParser top-level wiring) + #15 (PptxEmitter) + #16 (CLI wiring)
-7. After Sprint 2, run `/sprint-boundary`
-
-## Tracking Artifacts
-- `docs/tracking/2026-03-15-pptx-marp-discovery.md` — Discovery phase tracking
-- `docs/tracking/2026-03-15-pptx-marp-architecture.md` — Architecture phase tracking
-- `docs/tracking/2026-03-15-pptx-marp-debate.md` — Wei debate tracking
-- `docs/tracking/2026-03-15-pptx-marp-plan.md` — Planning phase tracking
-- `docs/tracking/2026-03-15-spike-results.md` — Spike results (both PASS)
+## Key Context
+- **ADR-0016:** Unified theme YAML with pptx: section. Per-format color overrides. ResolvedPptxTheme sub-object.
+- **Table implementation:** Uses A.GraphicFrame (not P.Shape) appended to ShapeTree. Theme-styled headers and alternating rows.
+- **Build animations:** Basic timing tree with ClickEffect nodes. Full animation API is complex — current implementation adds click-advance timing.
+- **Hyperlinks:** Uses A.HyperlinkOnClick with InvalidUrl workaround for external URLs (Open XML SDK doesn't directly support external hyperlink on run properties).
+- **Shouldly 4.3.0 API:** `ShouldContain(string, string)` second arg maps to `Case` enum. Use named `customMessage:` parameter.
+- **System.CommandLine 2.0.5:** `SetAction` not `SetHandler`, `ParseResult.GetValue()` not `InvocationContext`.
+- **Diagrams test flakes:** Playwright-based Mermaid tests fail intermittently in devcontainer. Pre-existing.
+- **Slide layout names are lowercase:** "title", "section-divider", "content", "two-column", "blank" — not PascalCase.
 
 ## Proxy Decisions (Review Required)
 <!-- No proxy decisions this session -->
 
-## Key Context
-- **YAML front matter vs. slide breaks:** `SlidePipeline.Parse()` disables `EnableYamlFrontMatter` so `---` is parsed as `ThematicBreakBlock`. MARP front matter will be handled separately by `MarpParser` in Sprint 2.
-- **AST reparenting pattern:** Must snapshot blocks to `List<Block>` before calling `parent.Remove(block)`. Iterating `MarkdownDocument` directly while removing causes silent skips.
-- **Shouldly 4.3.0 API:** `ShouldContain(string, string)` second arg maps to `Case` enum, not custom message. Use named `customMessage:` parameter.
-- **System.CommandLine 2.0.5:** Key patterns: `SetAction` not `SetHandler`, `ParseResult.GetValue()` not `InvocationContext`.
-- **Diagrams test flakes:** Playwright-based Mermaid tests fail intermittently in devcontainer (timeout/resource issues). Pre-existing, not a regression.
-- **`Md2.Emit.Pptx` directory:** Currently empty (no .cs files). The basic emitter (#15) will be the first code there.
-- **New types location:** All slide IR types are in `src/Md2.Core/Slides/`. The MARP parser will go in a new `src/Md2.Slides/` project.
+## Tracking Artifacts
+- `docs/tracking/2026-03-15-pptx-marp-discovery.md` — Discovery phase tracking
+- `docs/tracking/2026-03-15-pptx-marp-architecture.md` — Architecture phase tracking
