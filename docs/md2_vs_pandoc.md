@@ -19,6 +19,16 @@ Pandoc is a fantastic universal document converter. If you need to convert betwe
 | Image scaling | Aspect-ratio preserving, max-width aware, captions | Basic embedding |
 | Footnotes | Superscript references with bidirectional bookmarks | Supported |
 
+## Output comparison
+
+### Tables and admonitions
+
+![pandoc vs md2: pandoc produces a plain unstyled table and raw admonition text; md2 produces a styled table with header formatting, alternating row shading, borders, and a colored warning callout](media/compare-tables.png)
+
+### Code blocks and Mermaid diagrams
+
+![pandoc vs md2: pandoc renders code without highlighting and dumps Mermaid source as plain text; md2 produces syntax-highlighted code blocks and renders the Mermaid diagram as an image](media/compare-code-mermaid.png)
+
 ## Details
 
 ### Tables that don't look broken

@@ -1,7 +1,11 @@
 
 # md2
 
-A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture with AST transforms, syntax highlighting, Mermaid diagrams, and LaTeX math. Output quality noticeably superior to pandoc. [See how md2 compares to pandoc.](docs/md2_vs_pandoc.md)
+A CLI tool that converts Markdown to polished DOCX files. Pipeline architecture with AST transforms, syntax highlighting, Mermaid diagrams, and LaTeX math.
+
+![md2 output — styled table with header formatting, alternating rows, and colored warning callout (nightowl theme)](docs/media/hero-nightowl-tables.png)
+
+[See how md2 compares to pandoc.](docs/md2_vs_pandoc.md)
 
 ## Features
 
