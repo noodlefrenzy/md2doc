@@ -33,14 +33,14 @@ public class PptxEmitter : ISlideEmitter
         using var memStream = new MemoryStream();
         using (var presentationDoc = PresentationDocument.Create(memStream, PresentationDocumentType.Presentation, autoSave: true))
         {
-            CreatePresentationStructure(presentationDoc, doc, theme);
+            CreatePresentationStructure(presentationDoc, doc, theme, options);
         }
 
         memStream.Position = 0;
         await memStream.CopyToAsync(output);
     }
 
-    private static void CreatePresentationStructure(PresentationDocument presentationDoc, SlideDocument doc, ResolvedTheme theme)
+    private static void CreatePresentationStructure(PresentationDocument presentationDoc, SlideDocument doc, ResolvedTheme theme, EmitOptions options)
     {
         var presentationPart = presentationDoc.AddPresentationPart();
         presentationPart.Presentation = new Presentation();
@@ -76,7 +76,7 @@ public class PptxEmitter : ISlideEmitter
             var relationshipId = $"rId{slideIndex + 1}";
             var slidePart = presentationPart.AddNewPart<SlidePart>(relationshipId);
 
-            CreateSlide(slidePart, slide, theme, slideLayoutPart, slideSize, slideIndex, totalSlides);
+            CreateSlide(slidePart, slide, theme, options, slideLayoutPart, slideSize, slideIndex, totalSlides);
 
             if (!string.IsNullOrEmpty(slide.SpeakerNotes))
                 CreateSpeakerNotes(slidePart, slide.SpeakerNotes);
@@ -95,7 +95,7 @@ public class PptxEmitter : ISlideEmitter
     }
 
     private static void CreateSlide(SlidePart slidePart, Md2.Core.Slides.Slide slide, ResolvedTheme theme,
-        SlideLayoutPart layoutPart, Md2.Core.Slides.SlideSize slideSize, int slideNumber, int totalSlides)
+        EmitOptions options, SlideLayoutPart layoutPart, Md2.Core.Slides.SlideSize slideSize, int slideNumber, int totalSlides)
     {
         slidePart.AddPart(layoutPart, "rId1");
 
@@ -116,7 +116,7 @@ public class PptxEmitter : ISlideEmitter
         // Apply background: image takes precedence over color
         if (!string.IsNullOrEmpty(slide.Directives.BackgroundImage))
         {
-            ApplyBackgroundImage(slideElement, slidePart, slide, slideSize);
+            ApplyBackgroundImage(slideElement, slidePart, slide, slideSize, options.InputBaseDirectory);
         }
         else
         {
@@ -158,6 +158,22 @@ public class PptxEmitter : ISlideEmitter
             }
             else if (block is ParagraphBlock paragraph)
             {
+                // Check if paragraph is a standalone image
+                var imageLink = GetSoleImageLink(paragraph);
+                if (imageLink != null && !string.IsNullOrEmpty(imageLink.Url))
+                {
+                    var altText = GetInlineText(imageLink);
+                    var pic = CreateInlinePicture(shapeId++, slidePart, imageLink.Url, altText,
+                        leftMargin, currentY, contentWidth, options.InputBaseDirectory);
+                    if (pic != null)
+                    {
+                        shapeTree.Append(pic);
+                        // Estimate height from image dimensions or default
+                        currentY += 3657600L; // ~4" default
+                        continue;
+                    }
+                }
+
                 var baseFontPt = pptx?.BaseFontSize ?? theme.BaseFontSize;
                 var fontSize = (int)(baseFontPt * 100);
                 var shape = CreateRichTextShape(shapeId++, paragraph.Inline, leftMargin, currentY,
@@ -741,44 +757,188 @@ public class PptxEmitter : ISlideEmitter
     /// Attempts to load the image from disk relative to the working directory.
     /// </summary>
     private static void ApplyBackgroundImage(P.Slide slideElement, SlidePart slidePart,
-        Md2.Core.Slides.Slide slide, Md2.Core.Slides.SlideSize slideSize)
+        Md2.Core.Slides.Slide slide, Md2.Core.Slides.SlideSize slideSize, string? baseDirectory)
     {
         var bgImage = slide.Directives.BackgroundImage;
         if (string.IsNullOrEmpty(bgImage)) return;
 
         // Strip url() wrapper if present (MARP format)
         if (bgImage.StartsWith("url(", StringComparison.OrdinalIgnoreCase))
-        {
             bgImage = bgImage[4..].TrimEnd(')').Trim('"', '\'', ' ');
-        }
 
         // Only support local file paths (not URLs)
         if (bgImage.StartsWith("http://") || bgImage.StartsWith("https://"))
             return;
 
-        if (!File.Exists(bgImage)) return;
+        var resolvedPath = ResolveImagePath(bgImage, baseDirectory);
+        if (resolvedPath == null) return;
 
         try
         {
-            var mimeType = GetImageMimeType(bgImage);
+            var mimeType = GetImageMimeType(resolvedPath);
             if (mimeType == null) return;
 
             var imagePart = slidePart.AddNewPart<ImagePart>(mimeType, "rIdBg");
-            using var imageStream = File.OpenRead(bgImage);
+            using var imageStream = File.OpenRead(resolvedPath);
             imagePart.FeedData(imageStream);
 
-            // Set slide background to image fill
-            var bgProps = new BackgroundProperties();
-            bgProps.Append(new A.BlipFill(
-                new A.Blip { Embed = "rIdBg" },
-                new A.Stretch(new A.FillRectangle())));
-
-            slideElement.CommonSlideData!.Background = new Background(bgProps);
+            slideElement.CommonSlideData!.Background = new Background(
+                new BackgroundProperties(
+                    new A.BlipFill(
+                        new A.Blip { Embed = "rIdBg" },
+                        new A.Stretch(new A.FillRectangle()))));
         }
         catch
         {
             // Silently skip if image can't be loaded
         }
+    }
+
+    // ── Inline images (#135) ───────────────────────────────────────────
+
+    private static uint _imageCounter;
+
+    /// <summary>
+    /// Creates a PPTX Picture element for an inline image.
+    /// Follows the same path resolution + safety pattern as DOCX ImageBuilder.
+    /// </summary>
+    private static P.Picture? CreateInlinePicture(uint shapeId, SlidePart slidePart,
+        string imagePath, string? altText, long x, long y, long maxWidth, string? baseDirectory)
+    {
+        if (imagePath.StartsWith("http://") || imagePath.StartsWith("https://"))
+            return null;
+
+        var resolvedPath = ResolveImagePath(imagePath, baseDirectory);
+        if (resolvedPath == null) return null;
+
+        var mimeType = GetImageMimeType(resolvedPath);
+        if (mimeType == null) return null;
+
+        try
+        {
+            var imgId = $"rIdImg{Interlocked.Increment(ref _imageCounter)}";
+            var imagePart = slidePart.AddNewPart<ImagePart>(mimeType, imgId);
+            using var imageStream = File.OpenRead(resolvedPath);
+            imagePart.FeedData(imageStream);
+
+            var (widthEmu, heightEmu) = GetImageDimensions(resolvedPath);
+
+            // Scale to fit within maxWidth, maintain aspect ratio
+            if (widthEmu > maxWidth)
+            {
+                var scale = (double)maxWidth / widthEmu;
+                widthEmu = maxWidth;
+                heightEmu = (long)(heightEmu * scale);
+            }
+
+            return new P.Picture(
+                new P.NonVisualPictureProperties(
+                    new P.NonVisualDrawingProperties { Id = shapeId, Name = altText ?? $"Image {shapeId}" },
+                    new P.NonVisualPictureDrawingProperties(new A.PictureLocks { NoChangeAspect = true }),
+                    new ApplicationNonVisualDrawingProperties()),
+                new P.BlipFill(
+                    new A.Blip { Embed = imgId },
+                    new A.Stretch(new A.FillRectangle())),
+                new P.ShapeProperties(
+                    new A.Transform2D(
+                        new A.Offset { X = x, Y = y },
+                        new A.Extents { Cx = widthEmu, Cy = heightEmu }),
+                    new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // ── Shared image utilities (following DOCX ImageBuilder pattern) ──
+
+    /// <summary>
+    /// Resolves an image path with safety checks. Same pattern as DOCX ImageBuilder.IsPathSafe.
+    /// Rejects absolute paths and paths that resolve outside the base directory.
+    /// </summary>
+    private static string? ResolveImagePath(string imagePath, string? baseDirectory)
+    {
+        if (string.IsNullOrEmpty(imagePath)) return null;
+
+        if (Path.IsPathRooted(imagePath))
+            return null;
+
+        if (!string.IsNullOrEmpty(baseDirectory))
+        {
+            var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, imagePath));
+            var normalizedBase = Path.GetFullPath(baseDirectory);
+            if (!normalizedBase.EndsWith(Path.DirectorySeparatorChar))
+                normalizedBase += Path.DirectorySeparatorChar;
+
+            if (!fullPath.StartsWith(normalizedBase, StringComparison.Ordinal))
+                return null;
+
+            return File.Exists(fullPath) ? fullPath : null;
+        }
+
+        return File.Exists(imagePath) ? Path.GetFullPath(imagePath) : null;
+    }
+
+    private const long EmuPerInch = 914400L;
+
+    private static (long width, long height) GetImageDimensions(string imagePath)
+    {
+        try
+        {
+            using var stream = File.OpenRead(imagePath);
+            var header = new byte[24];
+            if (stream.Read(header, 0, 24) < 24)
+                return (EmuPerInch * 6, EmuPerInch * 4);
+
+            // PNG
+            if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47)
+            {
+                int w = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+                int h = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+                return ((long)w * EmuPerInch / 96, (long)h * EmuPerInch / 96);
+            }
+
+            // JPEG
+            if (header[0] == 0xFF && header[1] == 0xD8)
+                return GetJpegDimensions(imagePath);
+
+            return (EmuPerInch * 6, EmuPerInch * 4);
+        }
+        catch
+        {
+            return (EmuPerInch * 6, EmuPerInch * 4);
+        }
+    }
+
+    private static (long width, long height) GetJpegDimensions(string path)
+    {
+        using var stream = File.OpenRead(path);
+        stream.Position = 2;
+
+        while (stream.Position < stream.Length)
+        {
+            int m1 = stream.ReadByte();
+            if (m1 != 0xFF) break;
+            int m2 = stream.ReadByte();
+            if (m2 == -1) break;
+
+            if (m2 >= 0xC0 && m2 <= 0xC2)
+            {
+                var buf = new byte[7];
+                if (stream.Read(buf, 0, 7) < 7) break;
+                int h = (buf[3] << 8) | buf[4];
+                int w = (buf[5] << 8) | buf[6];
+                return ((long)w * EmuPerInch / 96, (long)h * EmuPerInch / 96);
+            }
+
+            int lenHi = stream.ReadByte();
+            int lenLo = stream.ReadByte();
+            if (lenHi == -1 || lenLo == -1) break;
+            stream.Position += (lenHi << 8 | lenLo) - 2;
+        }
+
+        return (EmuPerInch * 6, EmuPerInch * 4);
     }
 
     private static string? GetImageMimeType(string path)
@@ -954,6 +1114,34 @@ public class PptxEmitter : ISlideEmitter
         }
 
         return (text.ToString().Trim(), isFit);
+    }
+
+    /// <summary>
+    /// Returns the LinkInline if the paragraph contains only a single image, null otherwise.
+    /// </summary>
+    private static LinkInline? GetSoleImageLink(ParagraphBlock paragraph)
+    {
+        if (paragraph.Inline == null) return null;
+
+        LinkInline? imageLink = null;
+        foreach (var child in paragraph.Inline)
+        {
+            if (child is LinkInline { IsImage: true } link)
+            {
+                if (imageLink != null) return null; // multiple images
+                imageLink = link;
+            }
+            else if (child is LiteralInline literal && string.IsNullOrWhiteSpace(literal.Content.ToString()))
+            {
+                // whitespace is ok
+            }
+            else
+            {
+                return null; // non-image content
+            }
+        }
+
+        return imageLink;
     }
 
     private static string GetListItemText(ListItemBlock item)

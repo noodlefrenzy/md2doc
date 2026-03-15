@@ -488,6 +488,89 @@ public class PptxEmitterTests
             .ShouldBeTrue("Should have a footer shape");
     }
 
+    // ── Inline images (#135) ────────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_InlineImage_WithRealFile_CreatesPicture()
+    {
+        // Create a minimal PNG file for testing
+        var tempDir = Path.Combine(Path.GetTempPath(), $"md2test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var pngPath = Path.Combine(tempDir, "test.png");
+            // Minimal valid 1x1 PNG
+            var pngBytes = new byte[] {
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+                0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 pixels
+                0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, // 8-bit RGB
+                0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, // IDAT chunk
+                0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+                0x00, 0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC,
+                0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND chunk
+                0x44, 0xAE, 0x42, 0x60, 0x82
+            };
+            File.WriteAllBytes(pngPath, pngBytes);
+
+            var doc = CreateSimpleDoc("![Test Image](test.png)");
+            var emitter = new PptxEmitter();
+            var options = new EmitOptions { InputBaseDirectory = tempDir };
+
+            using var stream = new MemoryStream();
+            await emitter.EmitAsync(doc, DefaultTheme, options, stream);
+
+            stream.Position = 0;
+            using var pptx = PresentationDocument.Open(stream, false);
+            var slidePart = pptx.PresentationPart!.SlideParts.First();
+            // Should have an image part
+            slidePart.ImageParts.Any().ShouldBeTrue("Slide should have an embedded image");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task EmitAsync_InlineImage_MissingFile_NoError()
+    {
+        var doc = CreateSimpleDoc("![Missing](nonexistent.png)");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        // Should not throw even if image file doesn't exist
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Length.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task EmitAsync_InlineImage_PathTraversal_Rejected()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"md2test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var doc = CreateSimpleDoc("![Hack](../../etc/passwd)");
+            var emitter = new PptxEmitter();
+            var options = new EmitOptions { InputBaseDirectory = tempDir };
+
+            using var stream = new MemoryStream();
+            await emitter.EmitAsync(doc, DefaultTheme, options, stream);
+
+            stream.Position = 0;
+            using var pptx = PresentationDocument.Open(stream, false);
+            var slidePart = pptx.PresentationPart!.SlideParts.First();
+            // Should NOT have any image parts (path traversal rejected)
+            slidePart.ImageParts.Any().ShouldBeFalse("Path traversal should be rejected");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
     // ── Null checks ─────────────────────────────────────────────────
 
     [Fact]
