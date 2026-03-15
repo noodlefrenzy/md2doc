@@ -3,7 +3,7 @@ agent-notes:
   ctx: "implementation gotchas and established patterns"
   deps: [CLAUDE.md]
   state: active
-  last: "grace@2026-03-12"
+  last: "grace@2026-03-15"
 ---
 # Known Patterns and Gotchas
 
@@ -47,9 +47,9 @@ Extracted from CLAUDE.md to reduce context window load. Read this when working o
 
 ## Architecture Patterns (Archie)
 
-<!-- Archie: add architectural constraints, integration point knowledge, and
-     schema evolution notes here. Patterns that informed past ADRs but aren't
-     worth a standalone ADR themselves. -->
+- **YAGNI vs. Planned Capabilities (the Drift Trap).** YAGNI says don't build abstractions for hypothetical futures. But when a future capability is architecturally planned (has an ADR, appears in the architecture doc, is on the roadmap), the abstraction boundary that enables it is a **current requirement**, not speculation. Using format-specific units in a shared type because "we only support DOCX today" is not YAGNI — it's tech debt against a planned capability. **Detection signal:** a shared/core type contains concepts specific to one consumer (twips, page margins, TOC options) while the architecture plans for multiple consumers. **Fix:** use format-neutral representations in shared types; format-specific conversions happen at the boundary (in the emitter, not in Core). See `docs/retrospectives/2026-03-15-architectural-drift-retro.md`.
+
+- **Architecture docs describe contracts, not aspirations.** If the architecture doc says "the theme schema has a `pptx:` section," that must be true in the code — not a commented-out placeholder. Treat architecture doc claims as testable assertions. When implementing, if you can't honor a stated constraint, update the architecture doc to reflect reality (mark it as deferred, not implemented). Don't leave the doc claiming something the code doesn't deliver.
 
 ## Adapter / Integration Gotchas
 

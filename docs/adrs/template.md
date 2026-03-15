@@ -1,5 +1,5 @@
 ---
-agent-notes: { ctx: "ADR template for architectural decisions", deps: [CLAUDE.md], state: canonical, last: "archie@2026-02-12" }
+agent-notes: { ctx: "ADR template for architectural decisions", deps: [CLAUDE.md], state: canonical, last: "archie@2026-03-15" }
 ---
 
 # ADR-NNNN: <Title>
@@ -31,3 +31,10 @@ What becomes easier or more difficult to do because of this change?
 ### Neutral
 
 -
+
+## Fitness Functions
+
+How will we verify this decision continues to hold? Define concrete, observable checks that would catch a violation during code review or sprint boundary audits.
+
+- [ ] <check 1 — e.g., "No format-specific units in Md2.Core types">
+- [ ] <check 2 — e.g., "All IFormatEmitter implementations are in separate assemblies">

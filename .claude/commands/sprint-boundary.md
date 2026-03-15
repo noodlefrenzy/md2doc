@@ -90,6 +90,25 @@ For every item marked **Done** this sprint:
 
 ---
 
+## Step 1c: Architecture Drift Check
+
+Verify that the implementation still matches the architecture doc's stated constraints and seam points.
+
+1. **Read the architecture doc** (`docs/architecture.md`) and identify 2-3 key architectural claims (format neutrality, seam points, abstraction boundaries, planned extensibility).
+2. **Spot-check each claim against the implementation:**
+   - Open the relevant source files and verify the claim holds.
+   - Example: if the architecture says "Core is format-neutral," check that core types don't contain format-specific units or concepts.
+   - Example: if the architecture says "the theme schema has a pptx: section," verify it actually exists.
+3. **Check ADR fitness functions:** If any ADRs in `docs/adrs/` have a "Fitness Functions" section, verify the checks listed there still pass.
+4. **Report findings** in the retro document:
+   - "**Architecture drift check:** X/Y claims verified. Z drift items found."
+   - For each drift item: which claim, what the code actually does, and severity.
+5. **Create `process-improvement` issues** for any drift found.
+
+**Why this step exists:** The 2026-03-15 retro found that DOCX-specific assumptions had leaked into format-neutral Core types over 11 sprints, despite the architecture doc explicitly planning for format neutrality. Architecture docs that aren't periodically validated against reality become fiction. This lightweight check (not a full audit) catches drift before it compounds.
+
+---
+
 ## Step 2: Backlog Sweep
 
 After the retro, sweep the entire backlog to catch orphaned or user-created issues:
