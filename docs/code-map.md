@@ -62,8 +62,14 @@ Md2.Cli ─────────────── entry point, System.Comman
   +-- Md2.Emit.Docx ──── DOCX emitter
   |     +-- Md2.Core
   |     +-- DocumentFormat.OpenXml (NuGet)
+  +-- Md2.Slides ──────── MARP parser (v2)
+  |     +-- Md2.Core
+  |     +-- Md2.Parsing
+  |     +-- Markdig (NuGet)
+  |     +-- YamlDotNet (NuGet)
   +-- Md2.Emit.Pptx ──── PPTX emitter (v2)
   |     +-- Md2.Core
+  |     +-- Md2.Slides
   |     +-- DocumentFormat.OpenXml (NuGet)
   +-- Md2.Diagrams ────── Mermaid rendering
   |     +-- Microsoft.Playwright (NuGet)
@@ -128,6 +134,32 @@ Md2.Cli ─────────────── entry point, System.Comman
 | Safety | `TemplateSafetyChecker` | IRM, .doc, .docm, size limit checks |
 
 **External deps:** YamlDotNet
+
+### Md2.Slides -- MARP Parser (v2)
+
+**Purpose:** Parses MARP-styled Markdown into `SlideDocument` IR. Handles directives, slide splitting, image syntax, layout inference.
+
+| Area | Key Types | Notes |
+|------|----------|-------|
+| Parser | `MarpParser` | Top-level: string → SlideDocument |
+| Directives | `MarpDirectiveExtractor`, `MarpDirectiveClassifier`, `MarpDirectiveCascader` | Extract, classify (global/local/scoped), cascade |
+| Slide splitting | `MarpSlideExtractor` | Split AST at `---` boundaries, extract speaker notes |
+| Image syntax | `MarpImageSyntax`, `MarpImageInfo` | Parse bg, w:, h:, fit, split keywords |
+| Extensions | `MarpExtensionParser`, `Md2Extension` | Parse `<!-- md2: {...} -->` YAML payloads |
+| Layout | `SlideLayoutInferrer` | Infer layout from content + class directive |
+| Types | `MarpDirective`, `MarpDirectiveScope` | Directive value types |
+
+**External deps:** Markdig, YamlDotNet
+
+### Md2.Emit.Pptx -- PPTX Emitter (v2)
+
+**Purpose:** Produces Open XML PresentationDocument from SlideDocument.
+
+| Area | Key Types | Notes |
+|------|----------|-------|
+| Emitter | `PptxEmitter : ISlideEmitter` | Top-level emitter |
+
+**External deps:** DocumentFormat.OpenXml
 
 ### Md2.Emit.Docx -- DOCX Emitter
 
@@ -218,13 +250,15 @@ _To be populated as tests are written. See `docs/architecture.md` section 11 for
 
 | Package | Tests | Focus |
 |---------|-------|-------|
-| Md2.Core.Tests | 71 | Pipeline orchestration, transform ordering, warnings |
+| Md2.Core.Tests | 134 | Pipeline orchestration, transform ordering, SlideDocument IR, SlidePipeline, warnings |
 | Md2.Parsing.Tests | 46 | Extension coverage, front matter extraction, YAML safety |
 | Md2.Emit.Docx.Tests | 187 | Style application, element construction, contrast, path safety |
+| Md2.Emit.Pptx.Tests | 9 | Basic PPTX emission, slide count, speaker notes, metadata |
+| Md2.Slides.Tests | 129 | Directive extraction/classification/cascade, slide splitting, image syntax, extensions, layout inference, MarpParser |
 | Md2.Themes.Tests | 185 | Theme parsing, cascade resolution, validation, formatting |
 | Md2.Highlight.Tests | 37 | Token accuracy, theme mapping |
 | Md2.Math.Tests | 20 | LaTeX→OMML conversion, MathBlockAnnotator transform |
 | Md2.Diagrams.Tests | 67 | BrowserManager, MermaidRenderer, DiagramCache, MermaidDiagramRenderer, theme config |
 | Md2.Preview.Tests | 33 | HTML renderer, server endpoints, file watcher, CSS sanitization, security headers |
 | Md2.Integration.Tests | 86 | End-to-end pipeline, composition, doctor, comprehensive doc, preview command |
-| **Total** | **732** | |
+| **Total** | **933** | |
