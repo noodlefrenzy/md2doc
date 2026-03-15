@@ -175,14 +175,6 @@ public static class ConvertCommand
 
             var markdown = await File.ReadAllTextAsync(input.FullName, cancellationToken);
 
-            // Parse
-            var parseSw = Stopwatch.StartNew();
-            var pipeline = new ConversionPipeline(logger);
-            var parserOptions = new ParserOptions();
-            var doc = pipeline.Parse(markdown, parserOptions);
-            parseSw.Stop();
-            logger.LogInformation("Parse: {Elapsed}ms", parseSw.ElapsedMilliseconds);
-
             // Resolve theme via 4-layer cascade (before transforms so theme is available to Mermaid rendering)
             var cascadeSw = Stopwatch.StartNew();
             var cascadeInput = new ThemeCascadeInput
@@ -292,6 +284,14 @@ public static class ConvertCommand
             else
             {
                 // DOCX path: ConversionPipeline → DocxEmitter
+                // Parse
+                var parseSw = Stopwatch.StartNew();
+                var pipeline = new ConversionPipeline(logger);
+                var parserOptions = new ParserOptions();
+                var doc = pipeline.Parse(markdown, parserOptions);
+                parseSw.Stop();
+                logger.LogInformation("Parse: {Elapsed}ms", parseSw.ElapsedMilliseconds);
+
                 // Set up browser-based rendering (Mermaid + Math)
                 await using var browserManager = new BrowserManager(
                     loggerFactory.CreateLogger<BrowserManager>());

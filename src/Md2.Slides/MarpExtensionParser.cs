@@ -70,9 +70,10 @@ public static partial class MarpExtensionParser
 
             return ext;
         }
-        catch
+        catch (Exception ex)
         {
-            return null; // Invalid YAML — ignore silently
+            Console.Error.WriteLine($"Warning: Failed to parse md2 extension: {ex.Message}");
+            return null;
         }
     }
 

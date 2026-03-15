@@ -129,8 +129,9 @@ public partial class MarpParser
 
             return (frontMatter, body);
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"Warning: Failed to parse YAML front matter: {ex.Message}");
             return (null, markdown);
         }
     }
