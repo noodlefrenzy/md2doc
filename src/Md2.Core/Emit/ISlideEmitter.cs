@@ -12,5 +12,5 @@ namespace Md2.Core.Emit;
 public interface ISlideEmitter
 {
     string FormatName { get; }
-    Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output);
+    Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output, CancellationToken cancellationToken = default);
 }

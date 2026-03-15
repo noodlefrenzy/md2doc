@@ -2,6 +2,7 @@
 
 using Markdig.Syntax;
 using Md2.Core.Slides;
+using Md2.Parsing;
 using Md2.Slides.Directives;
 
 namespace Md2.Slides;
@@ -123,7 +124,7 @@ public static class MarpSlideExtractor
             return new List<MarpDirective>();
 
         // Parse as a single-block doc to reuse extractor
-        var pipeline = new Markdig.MarkdownPipelineBuilder().Build();
+        var pipeline = Md2MarkdownPipeline.Build();
         var miniDoc = Markdig.Markdown.Parse(html, pipeline);
         var raw = MarpDirectiveExtractor.Extract(miniDoc);
 

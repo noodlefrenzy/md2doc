@@ -25,12 +25,14 @@ public class PptxEmitter : ISlideEmitter
 {
     public string FormatName => "pptx";
 
-    public async Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output)
+    public async Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(output);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         using var memStream = new MemoryStream();
         using (var presentationDoc = PresentationDocument.Create(memStream, PresentationDocumentType.Presentation, autoSave: true))
@@ -39,7 +41,7 @@ public class PptxEmitter : ISlideEmitter
         }
 
         memStream.Position = 0;
-        await memStream.CopyToAsync(output);
+        await memStream.CopyToAsync(output, cancellationToken);
     }
 
     private static void CreatePresentationStructure(PresentationDocument presentationDoc, SlideDocument doc, ResolvedTheme theme, EmitOptions options)

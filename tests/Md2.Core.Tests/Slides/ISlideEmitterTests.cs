@@ -16,7 +16,7 @@ public class ISlideEmitterTests
         public bool WasCalled { get; private set; }
         public SlideDocument? ReceivedDoc { get; private set; }
 
-        public Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output)
+        public Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output, CancellationToken cancellationToken = default)
         {
             WasCalled = true;
             ReceivedDoc = doc;

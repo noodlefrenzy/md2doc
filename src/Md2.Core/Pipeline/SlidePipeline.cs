@@ -114,7 +114,7 @@ public class SlidePipeline
         return slideDoc;
     }
 
-    public async Task Emit(SlideDocument doc, ResolvedTheme theme, ISlideEmitter emitter, EmitOptions options, Stream output)
+    public async Task Emit(SlideDocument doc, ResolvedTheme theme, ISlideEmitter emitter, EmitOptions options, Stream output, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(theme);
@@ -123,7 +123,7 @@ public class SlidePipeline
         ArgumentNullException.ThrowIfNull(output);
 
         _logger.LogInformation("SlidePipeline emit starting (format: {Format})", emitter.FormatName);
-        await emitter.EmitAsync(doc, theme, options, output);
+        await emitter.EmitAsync(doc, theme, options, output, cancellationToken);
         _logger.LogInformation("SlidePipeline emit complete");
     }
 
