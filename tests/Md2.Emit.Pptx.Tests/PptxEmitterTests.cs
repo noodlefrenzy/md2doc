@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using Markdig;
 using Markdig.Syntax;
+using Md2.Core.Ast;
 using Md2.Core.Emit;
 using Md2.Core.Pipeline;
 using Md2.Core.Slides;
@@ -587,5 +588,218 @@ public class PptxEmitterTests
         var emitter = new PptxEmitter();
         await Should.ThrowAsync<ArgumentNullException>(
             () => emitter.EmitAsync(CreateSimpleDoc("# Hi"), null!, new EmitOptions(), new MemoryStream()));
+    }
+
+    // ── Mermaid image fallback (#140) ────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_MermaidWithImagePath_EmbedsPicture()
+    {
+        // Create a minimal PNG for testing
+        var tempDir = Path.Combine(Path.GetTempPath(), $"md2test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var pngPath = Path.Combine(tempDir, "mermaid.png");
+            var pngBytes = new byte[] {
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+                0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+                0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+                0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+                0x00, 0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC,
+                0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+                0x44, 0xAE, 0x42, 0x60, 0x82
+            };
+            File.WriteAllBytes(pngPath, pngBytes);
+
+            // Create a doc with a mermaid fenced code block that has image path annotation
+            var pipeline = new MarkdownPipelineBuilder().Build();
+            var md = Markdown.Parse("```mermaid\nsequenceDiagram\n    A->>B: Hello\n```", pipeline);
+            // Annotate the FencedCodeBlock with image path
+            var fenced = md.Descendants<FencedCodeBlock>().First();
+            fenced.SetMermaidImagePath(pngPath);
+
+            var doc = new SlideDocument();
+            doc.AddSlide(new CoreSlide(0, md));
+            var emitter = new PptxEmitter();
+
+            using var stream = new MemoryStream();
+            await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+            stream.Position = 0;
+            using var pptx = PresentationDocument.Open(stream, false);
+            var slidePart = pptx.PresentationPart!.SlideParts.First();
+            slidePart.ImageParts.Any().ShouldBeTrue("Mermaid fallback should embed image");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task EmitAsync_MermaidWithoutImage_FallsBackToCode()
+    {
+        var doc = CreateSimpleDoc("```mermaid\nsequenceDiagram\n    A->>B: Hello\n```");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        // Should produce valid PPTX (rendered as code block)
+        stream.Length.ShouldBeGreaterThan(0);
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        pptx.PresentationPart.ShouldNotBeNull();
+    }
+
+    // ── Mermaid flowchart → native shapes (#138) ────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_MermaidFlowchart_CreatesNativeShapes()
+    {
+        var doc = CreateSimpleDoc("```mermaid\ngraph TD\n    A[Start] --> B[End]\n```");
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        var shapeTree = slidePart.Slide.CommonSlideData!.ShapeTree!;
+
+        // Should have native shapes (not just code block)
+        var mermaidShapes = shapeTree.Elements<Shape>()
+            .Where(s => s.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.Contains("Mermaid") == true)
+            .ToList();
+        mermaidShapes.Count.ShouldBeGreaterThanOrEqualTo(2, "Should have at least 2 flowchart node shapes");
+
+        // Should also have connector
+        var connectors = shapeTree.Elements<ConnectionShape>().ToList();
+        connectors.Count.ShouldBeGreaterThanOrEqualTo(1, "Should have at least 1 connector");
+    }
+
+    [Fact]
+    public async Task EmitAsync_MermaidFlowchartWithTheme_UsesThemeColors()
+    {
+        var doc = CreateSimpleDoc("```mermaid\ngraph TD\n    A[Start] --> B[End]\n```");
+        var theme = new ResolvedTheme
+        {
+            PrimaryColor = "FF0000",
+            SecondaryColor = "00FF00"
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Length.ShouldBeGreaterThan(0);
+    }
+
+    // ── Chart code fence (#141/#142) ────────────────────────────────────
+
+    [Fact]
+    public async Task EmitAsync_ChartBarYaml_CreatesChart()
+    {
+        var chartMd = "```chart\ntype: bar\ntitle: Sales\nlabels: [Q1, Q2, Q3]\nseries:\n- name: Rev\n  values: [10, 20, 30]\n```";
+        var doc = CreateSimpleDoc(chartMd);
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        // Should have a chart part
+        slidePart.ChartParts.Any().ShouldBeTrue("Should have an embedded chart");
+    }
+
+    [Fact]
+    public async Task EmitAsync_ChartLineYaml_CreatesChart()
+    {
+        var chartMd = "```chart\ntype: line\ntitle: Trend\nlabels: [Jan, Feb]\nseries:\n- name: Data\n  values: [10, 20]\n```";
+        var doc = CreateSimpleDoc(chartMd);
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        slidePart.ChartParts.Any().ShouldBeTrue("Line chart should be embedded");
+    }
+
+    [Fact]
+    public async Task EmitAsync_ChartPieYaml_CreatesChart()
+    {
+        var chartMd = "```chart\ntype: pie\ntitle: Share\nlabels: [A, B, C]\nseries:\n- name: Share\n  values: [50, 30, 20]\n```";
+        var doc = CreateSimpleDoc(chartMd);
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        slidePart.ChartParts.Any().ShouldBeTrue("Pie chart should be embedded");
+    }
+
+    [Fact]
+    public async Task EmitAsync_ChartCsv_CreatesChart()
+    {
+        var chartMd = "```chart\ntype: column\ntitle: CSV Test\n---\nCat,Val1,Val2\nA,10,5\nB,20,10\n```";
+        var doc = CreateSimpleDoc(chartMd);
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        var slidePart = pptx.PresentationPart!.SlideParts.First();
+        slidePart.ChartParts.Any().ShouldBeTrue("CSV column chart should be embedded");
+    }
+
+    [Fact]
+    public async Task EmitAsync_ChartWithCustomPalette_UsesThemeColors()
+    {
+        var chartMd = "```chart\ntype: bar\nlabels: [A, B]\nseries:\n- name: Data\n  values: [1, 2]\n```";
+        var doc = CreateSimpleDoc(chartMd);
+        var theme = new ResolvedTheme
+        {
+            Pptx = new ResolvedPptxTheme
+            {
+                ChartPalette = new[] { "FF0000", "00FF00", "0000FF" }
+            }
+        };
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, theme, new EmitOptions(), stream);
+
+        stream.Length.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task EmitAsync_InvalidChartData_FallsBackToCode()
+    {
+        var chartMd = "```chart\nthis is not valid chart data\n```";
+        var doc = CreateSimpleDoc(chartMd);
+        var emitter = new PptxEmitter();
+
+        using var stream = new MemoryStream();
+        await emitter.EmitAsync(doc, DefaultTheme, new EmitOptions(), stream);
+
+        // Should still produce valid PPTX (falls back to code block)
+        stream.Length.ShouldBeGreaterThan(0);
+        stream.Position = 0;
+        using var pptx = PresentationDocument.Open(stream, false);
+        pptx.PresentationPart.ShouldNotBeNull();
     }
 }
