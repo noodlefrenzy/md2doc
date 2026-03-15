@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Md2.Core\Md2.Core.csproj" />
     <ProjectReference Include="..\Md2.Emit.Docx\Md2.Emit.Docx.csproj" />
+    <ProjectReference Include="..\Md2.Emit.Pptx\Md2.Emit.Pptx.csproj" />
+    <ProjectReference Include="..\Md2.Slides\Md2.Slides.csproj" />
     <ProjectReference Include="..\Md2.Parsing\Md2.Parsing.csproj" />
     <ProjectReference Include="..\Md2.Highlight\Md2.Highlight.csproj" />
     <ProjectReference Include="..\Md2.Diagrams\Md2.Diagrams.csproj" />

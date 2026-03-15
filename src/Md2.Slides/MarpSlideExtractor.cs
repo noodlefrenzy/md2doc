@@ -69,14 +69,17 @@ public static class MarpSlideExtractor
                 // For heading breaks, the heading goes into the new slide
             }
 
-            // Check if this is an HTML block with directives or speaker notes
+            // Check if this is an HTML block with directives, speaker notes, or md2 extensions
             if (block is HtmlBlock htmlBlock)
             {
                 var html = htmlBlock.Lines.ToString().Trim();
 
-                // Extract inline directives and assign slide index
-                var inlineDirectives = ExtractInlineDirectives(html, slideIndex);
-                directivesWithSlideIndex.AddRange(inlineDirectives);
+                // md2 extensions are kept in content (MarpParser reads them from there)
+                if (MarpExtensionParser.IsMd2Extension(html))
+                {
+                    currentBlocks.Add(block);
+                    continue;
+                }
 
                 // Check for speaker notes
                 var note = MarpDirectiveExtractor.ExtractSpeakerNote(html);
@@ -85,6 +88,10 @@ public static class MarpSlideExtractor
                     currentSpeakerNotes.Add(note);
                     continue; // don't add speaker note to slide content
                 }
+
+                // Extract inline directives and assign slide index
+                var inlineDirectives = ExtractInlineDirectives(html, slideIndex);
+                directivesWithSlideIndex.AddRange(inlineDirectives);
 
                 // Skip directive-only HTML blocks from content
                 if (inlineDirectives.Count > 0)

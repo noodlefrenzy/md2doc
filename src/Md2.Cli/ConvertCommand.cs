@@ -6,10 +6,12 @@ using Md2.Core.Exceptions;
 using Md2.Core.Pipeline;
 using Md2.Core.Transforms;
 using Md2.Emit.Docx;
+using Md2.Emit.Pptx;
 using Md2.Diagrams;
 using Md2.Highlight;
 using Md2.Math;
 using Md2.Parsing;
+using Md2.Slides;
 using Md2.Themes;
 using Microsoft.Extensions.Logging;
 
@@ -27,7 +29,7 @@ public static class ConvertCommand
 
         var outputOption = new Option<FileInfo?>("-o", "--output")
         {
-            Description = "Path to the output DOCX file. Derived from input name if omitted."
+            Description = "Path to the output file (.docx or .pptx). Derived from input name if omitted."
         };
 
         var quietOption = new Option<bool>("-q", "--quiet")
@@ -83,7 +85,7 @@ public static class ConvertCommand
             Description = "Include a cover page from front matter metadata"
         };
 
-        var rootCommand = new RootCommand("Convert Markdown to polished DOCX files")
+        var rootCommand = new RootCommand("Convert Markdown to polished DOCX or PPTX files")
         {
             inputArgument,
             outputOption,
@@ -145,6 +147,9 @@ public static class ConvertCommand
         // Derive output path if not specified
         var outputPath = output?.FullName
             ?? Path.ChangeExtension(input.FullName, ".docx");
+
+        // Detect PPTX output and route to slide pipeline
+        var isPptx = Path.GetExtension(outputPath).Equals(".pptx", StringComparison.OrdinalIgnoreCase);
 
         // Configure logging based on flags
         var logLevel = debug ? LogLevel.Debug : verbose ? LogLevel.Information : LogLevel.Warning;
@@ -263,53 +268,78 @@ public static class ConvertCommand
                 await Console.Error.WriteLineAsync();
             }
 
-            // Set up browser-based rendering (Mermaid + Math)
-            await using var browserManager = new BrowserManager(
-                loggerFactory.CreateLogger<BrowserManager>());
-            var cacheDir = Path.Combine(Path.GetTempPath(), "md2-cache");
-            var diagramCache = new DiagramCache(cacheDir, MermaidRenderer.MermaidVersion);
-            var mermaidRenderer = new MermaidRenderer(browserManager, diagramCache,
-                loggerFactory.CreateLogger<MermaidRenderer>());
-            var latexConverter = new LatexToOmmlConverter(browserManager,
-                loggerFactory.CreateLogger<LatexToOmmlConverter>());
-
-            // Transform (with resolved theme available to Mermaid renderer)
-            var transformSw = Stopwatch.StartNew();
-            pipeline.RegisterTransform(new YamlFrontMatterExtractor());
-            pipeline.RegisterTransform(new SmartTypographyTransform());
-            pipeline.RegisterTransform(new MathBlockAnnotator(latexConverter));
-            pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
-            pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
-            var transformOptions = new TransformOptions { RenderMermaid = true };
-            var transformResult = pipeline.Transform(doc, transformOptions, cancellationToken, resolvedTheme: theme);
-            var transformed = transformResult.Document;
-            transformSw.Stop();
-            logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
-
-            // Surface any warnings from transforms (e.g. failed Mermaid/Math rendering)
-            if (!quiet)
+            if (isPptx)
             {
-                foreach (var warning in transformResult.Warnings)
+                // PPTX path: MarpParser → SlideDocument → PptxEmitter
+                var parseSw2 = Stopwatch.StartNew();
+                var marpParser = new MarpParser();
+                var slideDoc = marpParser.Parse(markdown);
+                parseSw2.Stop();
+                logger.LogInformation("MARP parse: {Elapsed}ms ({SlideCount} slides)", parseSw2.ElapsedMilliseconds, slideDoc.Slides.Count);
+
+                var emitSw = Stopwatch.StartNew();
+                var emitOptions = new EmitOptions
                 {
-                    await Console.Error.WriteLineAsync($"Warning: {warning}");
-                }
+                    InputBaseDirectory = Path.GetDirectoryName(Path.GetFullPath(input.FullName))
+                };
+                var pptxEmitter = new PptxEmitter();
+
+                using var fileStream = File.Create(outputPath);
+                await pptxEmitter.EmitAsync(slideDoc, theme, emitOptions, fileStream);
+                emitSw.Stop();
+                logger.LogInformation("Emit: {Elapsed}ms", emitSw.ElapsedMilliseconds);
             }
-
-            // Emit
-            var emitSw = Stopwatch.StartNew();
-            var emitOptions = new EmitOptions
+            else
             {
-                IncludeToc = toc,
-                TocDepth = tocDepth,
-                IncludeCoverPage = cover,
-                InputBaseDirectory = Path.GetDirectoryName(Path.GetFullPath(input.FullName))
-            };
-            var emitter = new DocxEmitter();
+                // DOCX path: ConversionPipeline → DocxEmitter
+                // Set up browser-based rendering (Mermaid + Math)
+                await using var browserManager = new BrowserManager(
+                    loggerFactory.CreateLogger<BrowserManager>());
+                var cacheDir = Path.Combine(Path.GetTempPath(), "md2-cache");
+                var diagramCache = new DiagramCache(cacheDir, MermaidRenderer.MermaidVersion);
+                var mermaidRenderer = new MermaidRenderer(browserManager, diagramCache,
+                    loggerFactory.CreateLogger<MermaidRenderer>());
+                var latexConverter = new LatexToOmmlConverter(browserManager,
+                    loggerFactory.CreateLogger<LatexToOmmlConverter>());
 
-            using var fileStream = File.Create(outputPath);
-            await pipeline.Emit(transformed, theme, emitter, emitOptions, fileStream);
-            emitSw.Stop();
-            logger.LogInformation("Emit: {Elapsed}ms", emitSw.ElapsedMilliseconds);
+                // Transform (with resolved theme available to Mermaid renderer)
+                var transformSw = Stopwatch.StartNew();
+                pipeline.RegisterTransform(new YamlFrontMatterExtractor());
+                pipeline.RegisterTransform(new SmartTypographyTransform());
+                pipeline.RegisterTransform(new MathBlockAnnotator(latexConverter));
+                pipeline.RegisterTransform(new MermaidDiagramRenderer(mermaidRenderer));
+                pipeline.RegisterTransform(new SyntaxHighlightAnnotator());
+                var transformOptions = new TransformOptions { RenderMermaid = true };
+                var transformResult = pipeline.Transform(doc, transformOptions, cancellationToken, resolvedTheme: theme);
+                var transformed = transformResult.Document;
+                transformSw.Stop();
+                logger.LogInformation("Transform: {Elapsed}ms", transformSw.ElapsedMilliseconds);
+
+                // Surface any warnings from transforms (e.g. failed Mermaid/Math rendering)
+                if (!quiet)
+                {
+                    foreach (var warning in transformResult.Warnings)
+                    {
+                        await Console.Error.WriteLineAsync($"Warning: {warning}");
+                    }
+                }
+
+                // Emit
+                var emitSw = Stopwatch.StartNew();
+                var emitOptions = new EmitOptions
+                {
+                    IncludeToc = toc,
+                    TocDepth = tocDepth,
+                    IncludeCoverPage = cover,
+                    InputBaseDirectory = Path.GetDirectoryName(Path.GetFullPath(input.FullName))
+                };
+                var emitter = new DocxEmitter();
+
+                using var fileStream = File.Create(outputPath);
+                await pipeline.Emit(transformed, theme, emitter, emitOptions, fileStream);
+                emitSw.Stop();
+                logger.LogInformation("Emit: {Elapsed}ms", emitSw.ElapsedMilliseconds);
+            }
 
             totalSw.Stop();
             logger.LogInformation("Total: {Elapsed}ms — Written: {Path}", totalSw.ElapsedMilliseconds, outputPath);

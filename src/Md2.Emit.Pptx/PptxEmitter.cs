@@ -1,0 +1,346 @@
+// agent-notes: { ctx: "Basic PPTX emitter: slides with text content only", deps: [DocumentFormat.OpenXml, Md2.Core.Slides, Md2.Core.Emit, Markdig], state: active, last: "sato@2026-03-15" }
+
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Presentation;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
+using Md2.Core.Emit;
+using Md2.Core.Pipeline;
+using Md2.Core.Slides;
+using A = DocumentFormat.OpenXml.Drawing;
+using P = DocumentFormat.OpenXml.Presentation;
+
+namespace Md2.Emit.Pptx;
+
+/// <summary>
+/// Basic PPTX emitter that creates slides with text content.
+/// Sprint 2 scope: text only, minimal styling. Theme-based styling comes in Sprint 3.
+/// </summary>
+public class PptxEmitter : ISlideEmitter
+{
+    public string FormatName => "pptx";
+
+    // Standard widescreen 16:9 dimensions in EMUs
+    private const long SlideWidth = 12192000L; // 13.333"
+    private const long SlideHeight = 6858000L; // 7.5"
+
+    public async Task EmitAsync(SlideDocument doc, ResolvedTheme theme, EmitOptions options, Stream output)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(theme);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(output);
+
+        using var memStream = new MemoryStream();
+        using (var presentationDoc = PresentationDocument.Create(memStream, PresentationDocumentType.Presentation, autoSave: true))
+        {
+            CreatePresentationStructure(presentationDoc, doc, theme);
+        }
+
+        memStream.Position = 0;
+        await memStream.CopyToAsync(output);
+    }
+
+    private static void CreatePresentationStructure(PresentationDocument presentationDoc, SlideDocument doc, ResolvedTheme theme)
+    {
+        // Create presentation part
+        var presentationPart = presentationDoc.AddPresentationPart();
+        presentationPart.Presentation = new Presentation();
+
+        // Set slide size
+        var slideSize = doc.Metadata.Size;
+        presentationPart.Presentation.SlideSize = new P.SlideSize
+        {
+            Cx = (int)slideSize.Width,
+            Cy = (int)slideSize.Height,
+            Type = SlideSizeValues.Custom
+        };
+
+        // Create slide master and layout
+        var slideMasterPart = presentationPart.AddNewPart<SlideMasterPart>("rId1");
+        slideMasterPart.SlideMaster = CreateSlideMaster();
+
+        var slideLayoutPart = slideMasterPart.AddNewPart<SlideLayoutPart>("rId1");
+        slideLayoutPart.SlideLayout = CreateSlideLayout();
+
+        // Link layout back to master
+        slideLayoutPart.SlideLayout.Append(new CommonSlideData(new ShapeTree()));
+
+        // Create slide ID list
+        var slideIdList = new SlideIdList();
+        presentationPart.Presentation.SlideIdList = slideIdList;
+
+        // Create slide master ID list
+        var slideMasterIdList = new SlideMasterIdList();
+        slideMasterIdList.Append(new SlideMasterId { Id = 2147483648U, RelationshipId = "rId1" });
+        presentationPart.Presentation.SlideMasterIdList = slideMasterIdList;
+
+        // Create each slide
+        uint slideId = 256;
+        var slideIndex = 1;
+
+        foreach (var slide in doc.Slides)
+        {
+            var relationshipId = $"rId{slideIndex + 1}";
+            var slidePart = presentationPart.AddNewPart<SlidePart>(relationshipId);
+
+            CreateSlide(slidePart, slide, theme, slideLayoutPart);
+
+            // Add speaker notes if present
+            if (!string.IsNullOrEmpty(slide.SpeakerNotes))
+            {
+                CreateSpeakerNotes(slidePart, slide.SpeakerNotes);
+            }
+
+            slideIdList.Append(new SlideId { Id = slideId++, RelationshipId = relationshipId });
+            slideIndex++;
+        }
+
+        // Set document properties
+        if (presentationDoc.PackageProperties != null)
+        {
+            if (!string.IsNullOrEmpty(doc.Metadata.Title))
+                presentationDoc.PackageProperties.Title = doc.Metadata.Title;
+            if (!string.IsNullOrEmpty(doc.Metadata.Author))
+                presentationDoc.PackageProperties.Creator = doc.Metadata.Author;
+        }
+    }
+
+    private static void CreateSlide(SlidePart slidePart, Md2.Core.Slides.Slide slide, ResolvedTheme theme, SlideLayoutPart layoutPart)
+    {
+        slidePart.AddPart(layoutPart, "rId1");
+
+        var slideElement = new P.Slide(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1U, Name = "" },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(
+                        new A.TransformGroup(
+                            new A.Offset { X = 0L, Y = 0L },
+                            new A.Extents { Cx = 0L, Cy = 0L },
+                            new A.ChildOffset { X = 0L, Y = 0L },
+                            new A.ChildExtents { Cx = 0L, Cy = 0L })))));
+
+        var shapeTree = slideElement.CommonSlideData!.ShapeTree!;
+        uint shapeId = 2;
+
+        // Walk the Markdig AST and create text shapes
+        long currentY = 457200L; // Start 0.5" from top
+        const long leftMargin = 457200L; // 0.5" from left
+        const long rightMargin = 457200L; // 0.5" from right
+        long contentWidth = SlideWidth - leftMargin - rightMargin;
+
+        foreach (var block in slide.Content)
+        {
+            if (block is HeadingBlock heading)
+            {
+                var text = GetInlineText(heading.Inline);
+                var fontSize = GetHeadingFontSize(heading.Level, theme);
+                var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth, fontSize, true, theme);
+                shapeTree.Append(shape);
+                currentY += (long)(fontSize * 2000); // Approximate height
+            }
+            else if (block is ParagraphBlock paragraph)
+            {
+                var text = GetInlineText(paragraph.Inline);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    var fontSize = (int)(theme.BaseFontSize * 100); // Convert pt to hundredths
+                    var shape = CreateTextShape(shapeId++, text, leftMargin, currentY, contentWidth, fontSize, false, theme);
+                    shapeTree.Append(shape);
+                    currentY += (long)(fontSize * 1500);
+                }
+            }
+            else if (block is ListBlock list)
+            {
+                var orderedIndex = int.TryParse(list.OrderedStart, out var start) ? start : 1;
+                foreach (var item in list.OfType<ListItemBlock>())
+                {
+                    var itemText = GetListItemText(item);
+                    var bullet = list.IsOrdered ? $"{orderedIndex++}. " : "\u2022 ";
+                    var fontSize = (int)(theme.BaseFontSize * 100);
+                    var shape = CreateTextShape(shapeId++, bullet + itemText,
+                        leftMargin + 457200L, currentY, contentWidth - 457200L, fontSize, false, theme);
+                    shapeTree.Append(shape);
+                    currentY += (long)(fontSize * 1200);
+                }
+            }
+            else if (block is FencedCodeBlock codeBlock)
+            {
+                var code = codeBlock.Lines.ToString();
+                var fontSize = (int)(theme.BaseFontSize * 0.85 * 100);
+                var shape = CreateTextShape(shapeId++, code, leftMargin, currentY, contentWidth, fontSize, false, theme, isCode: true);
+                shapeTree.Append(shape);
+                currentY += (long)(fontSize * 1500);
+            }
+        }
+
+        slidePart.Slide = slideElement;
+    }
+
+    private static P.Shape CreateTextShape(
+        uint shapeId, string text,
+        long x, long y, long width,
+        int fontSizeHundredths, bool isBold,
+        ResolvedTheme theme, bool isCode = false)
+    {
+        var fontName = isCode ? (theme.MonoFont ?? "Consolas") : (theme.BodyFont ?? "Calibri");
+        if (isBold)
+            fontName = theme.HeadingFont ?? fontName;
+
+        var runProperties = new A.RunProperties { Language = "en-US", FontSize = fontSizeHundredths, Bold = isBold };
+        runProperties.Append(new A.LatinFont { Typeface = fontName });
+
+        // Set text color
+        var colorHex = theme.BodyTextColor ?? "000000";
+        runProperties.Append(new A.SolidFill(
+            new A.RgbColorModelHex { Val = colorHex.TrimStart('#') }));
+
+        var run = new A.Run(runProperties, new A.Text(text));
+
+        var paragraph = new A.Paragraph(
+            new A.ParagraphProperties { Alignment = A.TextAlignmentTypeValues.Left },
+            run);
+
+        var textBody = new P.TextBody(
+            new A.BodyProperties
+            {
+                Wrap = A.TextWrappingValues.Square,
+                RightToLeftColumns = false,
+                Anchor = A.TextAnchoringTypeValues.Top
+            },
+            new A.ListStyle(),
+            paragraph);
+
+        var shape = new P.Shape(
+            new P.NonVisualShapeProperties(
+                new P.NonVisualDrawingProperties { Id = shapeId, Name = $"TextBox {shapeId}" },
+                new P.NonVisualShapeDrawingProperties(new A.ShapeLocks { NoGrouping = true }),
+                new ApplicationNonVisualDrawingProperties()),
+            new P.ShapeProperties(
+                new A.Transform2D(
+                    new A.Offset { X = x, Y = y },
+                    new A.Extents { Cx = width, Cy = 400000L }),
+                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }),
+            textBody);
+
+        return shape;
+    }
+
+    private static void CreateSpeakerNotes(SlidePart slidePart, string notes)
+    {
+        var notesSlidePart = slidePart.AddNewPart<NotesSlidePart>("rId2");
+
+        var notesSlide = new NotesSlide(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1U, Name = "" },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties(),
+                    new P.Shape(
+                        new P.NonVisualShapeProperties(
+                            new P.NonVisualDrawingProperties { Id = 2U, Name = "Notes Placeholder" },
+                            new P.NonVisualShapeDrawingProperties(
+                                new A.ShapeLocks { NoGrouping = true }),
+                            new ApplicationNonVisualDrawingProperties(
+                                new PlaceholderShape { Type = PlaceholderValues.Body, Index = 1U })),
+                        new P.ShapeProperties(),
+                        new P.TextBody(
+                            new A.BodyProperties(),
+                            new A.ListStyle(),
+                            new A.Paragraph(
+                                new A.Run(
+                                    new A.RunProperties { Language = "en-US" },
+                                    new A.Text(notes))))))));
+
+        notesSlidePart.NotesSlide = notesSlide;
+    }
+
+    private static string GetInlineText(ContainerInline? inline)
+    {
+        if (inline == null) return "";
+
+        var text = new System.Text.StringBuilder();
+        foreach (var child in inline)
+        {
+            switch (child)
+            {
+                case LiteralInline literal:
+                    text.Append(literal.Content);
+                    break;
+                case CodeInline code:
+                    text.Append(code.Content);
+                    break;
+                case EmphasisInline emphasis:
+                    text.Append(GetInlineText(emphasis));
+                    break;
+                case LinkInline link:
+                    text.Append(GetInlineText(link));
+                    break;
+                case LineBreakInline:
+                    text.Append(' ');
+                    break;
+            }
+        }
+        return text.ToString();
+    }
+
+    private static string GetListItemText(ListItemBlock item)
+    {
+        foreach (var block in item)
+        {
+            if (block is ParagraphBlock p)
+                return GetInlineText(p.Inline);
+        }
+        return "";
+    }
+
+    private static int GetHeadingFontSize(int level, ResolvedTheme theme)
+    {
+        return level switch
+        {
+            1 => (int)(theme.Heading1Size * 100),
+            2 => (int)(theme.Heading2Size * 100),
+            3 => (int)(theme.Heading3Size * 100),
+            4 => (int)(theme.Heading4Size * 100),
+            5 => (int)(theme.Heading5Size * 100),
+            6 => (int)(theme.Heading6Size * 100),
+            _ => (int)(theme.BaseFontSize * 100)
+        };
+    }
+
+    private static SlideMaster CreateSlideMaster()
+    {
+        return new SlideMaster(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1U, Name = "" },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties())),
+            new SlideLayoutIdList(
+                new SlideLayoutId { Id = 2147483649U, RelationshipId = "rId1" }));
+    }
+
+    private static P.SlideLayout CreateSlideLayout()
+    {
+        return new P.SlideLayout(
+            new CommonSlideData(
+                new ShapeTree(
+                    new P.NonVisualGroupShapeProperties(
+                        new P.NonVisualDrawingProperties { Id = 1U, Name = "" },
+                        new P.NonVisualGroupShapeDrawingProperties(),
+                        new ApplicationNonVisualDrawingProperties()),
+                    new GroupShapeProperties())))
+        {
+            Type = SlideLayoutValues.Blank
+        };
+    }
+}
