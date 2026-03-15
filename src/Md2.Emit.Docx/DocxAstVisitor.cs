@@ -382,8 +382,9 @@ public class DocxAstVisitor
         var mermaidPath = codeBlock.GetMermaidImagePath();
         if (mermaidPath != null && File.Exists(mermaidPath))
         {
-            // Empty alt text suppresses visible caption; "Mermaid diagram" used only as DocProperties.Description
-            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, "", _theme, _baseDirectory);
+            // Mermaid images are rendered by us to an absolute cache path — skip path traversal check
+            // by passing null for baseDirectory (the file is trusted, not user-supplied)
+            var imageParagraphs = _imageBuilder.BuildImage(_mainDocumentPart, mermaidPath, "", _theme, baseDirectory: null);
             return imageParagraphs.ToArray<OpenXmlElement>();
         }
 
