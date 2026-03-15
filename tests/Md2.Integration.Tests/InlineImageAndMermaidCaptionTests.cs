@@ -64,7 +64,7 @@ public class InlineImageAndMermaidCaptionTests : IDisposable
     }
 
     private async Task<(WordprocessingDocument Doc, MemoryStream Stream)> RunFullPipelineWithAstMutation(
-        string markdown, Action<MarkdownDocument> mutateAst)
+        string markdown, Action<MarkdownDocument> mutateAst, string? inputBaseDirectory = null)
     {
         var pipeline = new ConversionPipeline();
         var parserOptions = new ParserOptions();
@@ -78,7 +78,7 @@ public class InlineImageAndMermaidCaptionTests : IDisposable
         mutateAst(transformResult.Document);
 
         var theme = ResolvedTheme.CreateDefault();
-        var emitOptions = new EmitOptions();
+        var emitOptions = new EmitOptions { InputBaseDirectory = inputBaseDirectory };
         var emitter = new DocxEmitter();
         var stream = new MemoryStream();
 
@@ -272,6 +272,57 @@ public class InlineImageAndMermaidCaptionTests : IDisposable
             // A caption would contain the alt text — which for mermaid is empty, so
             // we verify no "mermaid" text appears in the next paragraph
             nextText.ToLowerInvariant().ShouldNotContain("mermaid");
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Regression: Mermaid images must embed even when InputBaseDirectory is set
+    // The path safety check must not reject absolute cache paths for images
+    // we rendered ourselves.
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task MermaidBlock_EmbedsImage_WhenInputBaseDirectoryIsSet()
+    {
+        var imagePath = CreateTempPng(); // absolute path in /tmp
+        var markdown = "```mermaid\ngraph TD;\n    A-->B;\n```\n";
+
+        // Use a different directory as base — simulates real CLI usage where
+        // the input .md file lives in a project directory, not /tmp
+        var baseDir = Path.Combine(Path.GetTempPath(), $"md2test_base_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(baseDir);
+
+        try
+        {
+            var (wordDoc, stream) = await RunFullPipelineWithAstMutation(
+                markdown,
+                doc =>
+                {
+                    var fencedBlock = doc.Descendants<FencedCodeBlock>()
+                        .FirstOrDefault(b => b.Info == "mermaid");
+                    fencedBlock.ShouldNotBeNull();
+                    fencedBlock!.SetMermaidImagePath(imagePath);
+                },
+                inputBaseDirectory: baseDir);
+
+            using var __ = stream;
+            using var _ = wordDoc;
+
+            var body = wordDoc.MainDocumentPart!.Document.Body!;
+
+            // The image should be embedded as a Drawing, not replaced with a placeholder
+            var drawings = body.Descendants<Drawing>().ToList();
+            drawings.ShouldNotBeEmpty(
+                "Mermaid diagram should embed as a Drawing even when InputBaseDirectory is set");
+
+            // Verify no placeholder text was emitted
+            var allText = string.Join(" ", body.Descendants<Text>().Select(t => t.Text));
+            allText.ShouldNotContain("Image not found");
+        }
+        finally
+        {
+            try { Directory.Delete(baseDir, true); }
+            catch { /* best-effort cleanup */ }
         }
     }
 
