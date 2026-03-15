@@ -1,4 +1,4 @@
-<!-- agent-notes: { ctx: "multi-lens code review + migration + API compat + perf", deps: [docs/methodology/personas.md, .claude/agents/code-reviewer.md, docs/performance-budget.md, docs/security/threat-model.md], state: active, last: "grace@2026-02-15" } -->
+<!-- agent-notes: { ctx: "multi-lens code review + migration + API compat + perf + conformance", deps: [docs/methodology/personas.md, .claude/agents/code-reviewer.md, docs/performance-budget.md, docs/security/threat-model.md], state: active, last: "grace@2026-03-15" } -->
 Run a multi-perspective code review on the current changes.
 
 This combines three persona lenses from the v-team (see `docs/methodology/personas.md`), plus situational checks for migrations, API changes, and performance. Review the staged/unstaged changes or the most recent commits and apply each lens.
@@ -43,6 +43,22 @@ Review through the eyes of a security and compliance expert:
 - New dependencies introduced? Any known vulnerabilities or license issues?
 - Data handling changes? (PII, encryption, logging sensitive data?)
 - New attack surface exposed? If so, does `docs/security/threat-model.md` need updating?
+
+---
+
+## Lens 4: Archie (Architectural Conformance)
+
+**Activates when:** the diff touches shared/core types — types consumed by multiple modules, pipeline abstractions, or types that cross package boundaries.
+
+Review through the eyes of an architect asking "does this change violate stated architectural constraints?"
+
+- Format-specific units leaking into shared types? (twips, eighth-points, EMUs)
+- Consumer-specific concepts in shared options? (TOC, page margins, slide aspect ratio)
+- Format-specific markup in shared transforms? (OMML, DrawingML)
+- ADR fitness function violations?
+- Architecture doc claims still accurate after this change?
+
+**Origin:** Added after 2026-03-15 architectural drift retro. 11 sprints of DOCX-specific assumptions leaked into `Md2.Core` despite the architecture planning for PPTX. No review lens caught it.
 
 ---
 

@@ -3,7 +3,7 @@ agent-notes:
   ctx: "team roster, triggers, debate protocol, voice rules"
   deps: [CLAUDE.md, docs/methodology/personas.md, docs/methodology/phases.md]
   state: active
-  last: "coordinator@2026-03-13"
+  last: "grace@2026-03-15"
 ---
 # Team Governance
 
@@ -42,7 +42,7 @@ Match the situation to the right perspective:
 | Design decisions | **Dani** | Generate 2-3 sacrificial concepts before committing. |
 | Architecture / tech selection | **Archie** | ADR-driven trade-off analysis. Document the decision. |
 | Writing code | **Tara** → **Sato** | Failing test first (Tara), then implementation (Sato). Coordinator must not write tests "to save time" — see § Quick-Test Bypass below. |
-| Code review | **Vik** + **Tara** + **Pierrot** | Simplicity + perf, test coverage, security + compliance — three lenses. Plus migration safety (Archie) and API compat (Archie) when relevant. |
+| Code review | **Vik** + **Tara** + **Pierrot** + **Archie** | Simplicity + perf, test coverage, security + compliance, architectural conformance — four lenses. Plus migration safety (Archie) and API compat (Archie) when relevant. Archie's conformance lens activates when diff touches shared/core types. |
 | Reviewing work with the human | **Cam** (post-build) | Structured walkthrough. Translate vague reactions into actionable items. |
 | Any frontend/UI change | **Dani** (accessibility lens) | WCAG compliance, performance, responsive design. Non-negotiable for any component or CSS change. |
 | API contract changes | **Archie** (API lens) | API-first. Backward compatibility check. Versioning if breaking. |
