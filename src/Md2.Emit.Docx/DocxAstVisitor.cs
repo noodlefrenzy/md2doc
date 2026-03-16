@@ -496,7 +496,8 @@ public class DocxAstVisitor
             CodeInline code => VisitCodeInline(code),
             LinkInline link => VisitLink(link, bold, italic, strikethrough),
             FootnoteLink footnoteLink => VisitFootnoteLink(footnoteLink),
-            LineBreakInline => VisitLineBreak(),
+            LineBreakInline lb when lb.IsHard => VisitLineBreak(),
+            LineBreakInline => Enumerable.Empty<OpenXmlElement>(),
             _ => Enumerable.Empty<OpenXmlElement>()
         };
     }
