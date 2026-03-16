@@ -29,6 +29,7 @@ public sealed class ListBuilder
     {
         var paragraphs = new List<Paragraph>();
         bool isOrdered = listBlock.IsOrdered;
+        bool isTight = !listBlock.IsLoose;
 
         int numId = EnsureNumberingDefinition(isOrdered);
 
@@ -36,7 +37,7 @@ public sealed class ListBuilder
         {
             if (item is ListItemBlock listItem)
             {
-                var itemParagraphs = BuildListItem(listItem, numId, nestLevel, isOrdered);
+                var itemParagraphs = BuildListItem(listItem, numId, nestLevel, isOrdered, isTight);
                 paragraphs.AddRange(itemParagraphs);
             }
         }
@@ -44,7 +45,7 @@ public sealed class ListBuilder
         return paragraphs;
     }
 
-    private List<Paragraph> BuildListItem(ListItemBlock listItem, int numId, int nestLevel, bool isOrdered)
+    private List<Paragraph> BuildListItem(ListItemBlock listItem, int numId, int nestLevel, bool isOrdered, bool isTight)
     {
         var paragraphs = new List<Paragraph>();
 
@@ -55,7 +56,7 @@ public sealed class ListBuilder
         {
             if (block is ParagraphBlock paragraphBlock)
             {
-                var paragraph = BuildListParagraph(paragraphBlock, numId, nestLevel, isTaskChecked);
+                var paragraph = BuildListParagraph(paragraphBlock, numId, nestLevel, isTaskChecked, isTight);
                 paragraphs.Add(paragraph);
                 // Only apply task checkbox to first paragraph
                 isTaskChecked = null;
@@ -70,7 +71,7 @@ public sealed class ListBuilder
         return paragraphs;
     }
 
-    private Paragraph BuildListParagraph(ParagraphBlock paragraphBlock, int numId, int nestLevel, bool? isTaskChecked)
+    private Paragraph BuildListParagraph(ParagraphBlock paragraphBlock, int numId, int nestLevel, bool? isTaskChecked, bool isTight)
     {
         var paragraph = new Paragraph();
 
@@ -86,6 +87,12 @@ public sealed class ListBuilder
                 Hanging = "360"
             }
         );
+
+        if (isTight)
+        {
+            paragraphProperties.Append(new SpacingBetweenLines { Before = "0", After = "0" });
+        }
+
         paragraph.Append(paragraphProperties);
 
         // Add task checkbox prefix if applicable

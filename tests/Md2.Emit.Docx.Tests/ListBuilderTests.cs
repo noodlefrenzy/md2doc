@@ -42,6 +42,44 @@ public class ListBuilderTests
         return (builder, mainPart);
     }
 
+    // ── Tight vs loose spacing ────────────────────────────────────────
+
+    [Fact]
+    public void Build_TightList_HasZeroSpacing()
+    {
+        var md = "- Item 1\n- Item 2\n- Item 3";
+        var (doc, list) = ParseList(md);
+        var (builder, _) = CreateBuilder();
+
+        var paragraphs = builder.Build(list);
+
+        foreach (var p in paragraphs)
+        {
+            var spacing = p.ParagraphProperties!.GetFirstChild<SpacingBetweenLines>();
+            spacing.ShouldNotBeNull();
+            spacing!.Before!.Value.ShouldBe("0");
+            spacing!.After!.Value.ShouldBe("0");
+        }
+    }
+
+    [Fact]
+    public void Build_LooseList_HasNoExplicitSpacing()
+    {
+        var md = "- Item 1\n\n- Item 2\n\n- Item 3";
+        var (doc, list) = ParseList(md);
+        var (builder, _) = CreateBuilder();
+
+        var paragraphs = builder.Build(list);
+
+        foreach (var p in paragraphs)
+        {
+            var spacing = p.ParagraphProperties!.GetFirstChild<SpacingBetweenLines>();
+            spacing.ShouldBeNull();
+        }
+    }
+
+    // ── Numbering and structure ──────────────────────────────────────
+
     [Fact]
     public void Build_UnorderedList_ProducesParagraphsWithBulletNumbering()
     {
