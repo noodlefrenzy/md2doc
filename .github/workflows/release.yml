@@ -1,4 +1,4 @@
-# agent-notes: { ctx: "GitHub Actions release workflow for platform binaries", deps: [src/Md2.Cli/Md2.Cli.csproj], state: active, last: "ines@2026-03-14" }
+# agent-notes: { ctx: "GitHub Actions release workflow for platform binaries", deps: [src/Md2.Cli/Md2.Cli.csproj], state: active, last: "sato@2026-03-16" }
 name: Release
 
 on:
@@ -45,6 +45,8 @@ jobs:
           --self-contained
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
           -o publish/${{ matrix.artifact }}
 
       - name: Archive (Linux/macOS)
@@ -73,6 +75,15 @@ jobs:
         with:
           path: artifacts
 
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          --title "${{ github.ref_name }}"
+          --generate-notes
+          --draft
+
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,3 +93,8 @@ jobs:
               gh release upload "${{ github.ref_name }}" "$file" --clobber
             done
           done
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false
