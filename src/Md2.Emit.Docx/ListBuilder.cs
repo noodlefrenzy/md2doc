@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Builds OpenXml list paragraphs from Markdig ListBlock", deps: [ParagraphBuilder, DocumentFormat.OpenXml, Markdig], state: active, last: "sato@2026-03-11" }
+// agent-notes: { ctx: "Builds OpenXml list paragraphs from Markdig ListBlock", deps: [ParagraphBuilder, InlineVisitorDelegate, DocumentFormat.OpenXml, Markdig], state: active, last: "sato@2026-03-16" }
 
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -12,15 +12,17 @@ public sealed class ListBuilder
 {
     private readonly ParagraphBuilder _paragraphBuilder;
     private readonly MainDocumentPart _mainDocumentPart;
+    private readonly InlineVisitorDelegate? _inlineVisitor;
     private int _nextAbstractNumId = 1;
     private int _nextNumId = 1;
 
     private static readonly string[] BulletChars = { "\u2022", "\u25E6", "\u25AA" }; // •, ◦, ▪
 
-    public ListBuilder(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart)
+    public ListBuilder(ParagraphBuilder paragraphBuilder, MainDocumentPart mainDocumentPart, InlineVisitorDelegate? inlineVisitor = null)
     {
         _paragraphBuilder = paragraphBuilder;
         _mainDocumentPart = mainDocumentPart;
+        _inlineVisitor = inlineVisitor;
     }
 
     public List<Paragraph> Build(ListBlock listBlock, int nestLevel = 0)
@@ -102,9 +104,20 @@ public sealed class ListBuilder
                 if (inline is TaskList)
                     continue;
 
-                var run = BuildRunFromInline(inline);
-                if (run != null)
-                    paragraph.Append(run);
+                if (_inlineVisitor != null)
+                {
+                    var elements = _inlineVisitor(inline, false, false, false)
+                        .Select(e => e.CloneNode(true))
+                        .ToList();
+                    foreach (var element in elements)
+                        paragraph.Append(element);
+                }
+                else
+                {
+                    var run = BuildRunFromInline(inline);
+                    if (run != null)
+                        paragraph.Append(run);
+                }
             }
         }
 

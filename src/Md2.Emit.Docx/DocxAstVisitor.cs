@@ -36,7 +36,7 @@ public class DocxAstVisitor
     {
         _paragraphBuilder = paragraphBuilder;
         _tableBuilder = new TableBuilder(paragraphBuilder, VisitInline);
-        _listBuilder = new ListBuilder(paragraphBuilder, mainDocumentPart);
+        _listBuilder = new ListBuilder(paragraphBuilder, mainDocumentPart, VisitInline);
         _imageBuilder = new ImageBuilder(paragraphBuilder);
         _codeBlockBuilder = new CodeBlockBuilder(paragraphBuilder);
         _bookmarkManager = new BookmarkManager();
