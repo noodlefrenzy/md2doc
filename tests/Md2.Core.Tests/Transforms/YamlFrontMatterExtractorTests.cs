@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Issue 7 YamlFrontMatterExtractor transform tests, TDD red", deps: [Md2.Core.Transforms, Md2.Core.Ast, Md2.Parsing], state: "red", last: "tara@2026-03-11" }
+// agent-notes: { ctx: "Issue 7 YamlFrontMatterExtractor transform tests, TDD red", deps: [Md2.Core.Transforms, Md2.Core.Ast, Md2.Parsing], state: "green", last: "tara@2026-03-16" }
 
 using Markdig;
 using Markdig.Extensions.Yaml;
@@ -125,6 +125,44 @@ public class YamlFrontMatterExtractorTests
 
         context.Metadata.CustomFields.ShouldContainKey("reviewer");
         context.Metadata.CustomFields["reviewer"].ShouldBe("Tara");
+    }
+
+    [Fact]
+    public void Transform_WithListValue_FlattensToCommaSeparatedString()
+    {
+        var markdown = "---\ntitle: List Test\nkeywords:\n  - markdown\n  - docx\n---\n\n# Content";
+        var doc = ParseMarkdown(markdown);
+        var context = CreateContext();
+
+        _sut.Transform(doc, context);
+
+        context.Metadata.Keywords.ShouldBe("markdown, docx");
+    }
+
+    [Fact]
+    public void Transform_WithNumericValue_ConvertsToString()
+    {
+        var markdown = "---\ntitle: Numeric\nversion: 2\n---\n\n# Content";
+        var doc = ParseMarkdown(markdown);
+        var context = CreateContext();
+
+        _sut.Transform(doc, context);
+
+        context.Metadata.CustomFields.ShouldContainKey("version");
+        context.Metadata.CustomFields["version"].ShouldBe("2");
+    }
+
+    [Fact]
+    public void Transform_WithBooleanValue_ConvertsToString()
+    {
+        var markdown = "---\ntitle: Bool\ndraft: true\n---\n\n# Content";
+        var doc = ParseMarkdown(markdown);
+        var context = CreateContext();
+
+        _sut.Transform(doc, context);
+
+        context.Metadata.CustomFields.ShouldContainKey("draft");
+        context.Metadata.CustomFields["draft"].ShouldBe("true");
     }
 
     // ── Helpers ────────────────────────────────────────────────────────

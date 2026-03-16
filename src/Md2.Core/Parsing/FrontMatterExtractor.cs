@@ -1,4 +1,4 @@
-// agent-notes: { ctx: "Extracts YAML front matter into DocumentMetadata", deps: [Markdig, YamlDotNet, DocumentMetadata], state: "green", last: "sato@2026-03-14" }
+// agent-notes: { ctx: "Extracts YAML front matter into DocumentMetadata", deps: [Markdig, YamlDotNet, DocumentMetadata], state: "green", last: "sato@2026-03-16" }
 // NOTE: Lives in Md2.Core assembly but uses namespace Md2.Parsing to avoid circular dependency
 // (Md2.Parsing cannot reference Md2.Core, but this class needs DocumentMetadata from Md2.Core.Ast).
 
@@ -29,14 +29,14 @@ public static class FrontMatterExtractor
             return new DocumentMetadata();
         }
 
-        Dictionary<string, string> parsed;
+        Dictionary<string, object> parsed;
         try
         {
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
 
-            parsed = deserializer.Deserialize<Dictionary<string, string>>(yaml)
+            parsed = deserializer.Deserialize<Dictionary<string, object>>(yaml)
                      ?? [];
         }
         catch (YamlException ex)
@@ -52,7 +52,7 @@ public static class FrontMatterExtractor
 
         foreach (var kvp in parsed)
         {
-            var value = kvp.Value?.Trim() ?? string.Empty;
+            var value = Stringify(kvp.Value);
 
             switch (kvp.Key.ToLowerInvariant())
             {
@@ -79,6 +79,17 @@ public static class FrontMatterExtractor
 
         metadata.CustomFields = customFields.AsReadOnly();
         return metadata;
+    }
+
+    private static string Stringify(object? value)
+    {
+        return value switch
+        {
+            null => string.Empty,
+            string s => s.Trim(),
+            IEnumerable<object> list => string.Join(", ", list.Select(Stringify)),
+            _ => value.ToString()?.Trim() ?? string.Empty,
+        };
     }
 
     private static string ExtractYamlText(YamlFrontMatterBlock block)
